@@ -1,0 +1,4 @@
+# Keep LF endings so the Linux image and the scorer see the same files.
+* text=auto eol=lf
+*.i16 binary
+*.gz binary

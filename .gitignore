@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# local match logs / replays (repo must stay under 20 MB)
+replays/
+*.log

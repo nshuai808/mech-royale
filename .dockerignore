@@ -1,0 +1,12 @@
+# Keep the image to just the bot. The map is mounted at /arena during matches.
+.git
+.github
+kit
+tools
+replays
+*.md
+__pycache__
+*.pyc
+.venv
+.vscode
+.idea
