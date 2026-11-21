@@ -45,7 +45,7 @@
   },
   "special_guard": {
     "_note": "no weapon swap that drops a held weapon while an enemy mech is within enemy_r or we were hit within quiet_s (Bot._take, Bot._in_fight)",
-    "enabled": false,
+    "enabled": true,
     "enemy_r": 150,
     "quiet_s": 2.5
   },
