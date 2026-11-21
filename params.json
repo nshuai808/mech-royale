@@ -80,7 +80,7 @@
     "hp_frac": 1.01
   },
   "gun_aim": {
-    "enabled": false
+    "enabled": true
   },
   "evade_unstick": {
     "enabled": true
