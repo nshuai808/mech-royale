@@ -20,6 +20,7 @@ Submissions close **Sun 11:00 AM ET**. Max 4 submissions per hour per team.
 | `kit/mechfight.schema.json` | JSON Schema for every message. |
 | `botlog.py` | `trace()` for per-decision logging; off unless `MECH_TRACE=1`, so free in matches. |
 | `tools/` | Local logging harness: `record.py`, `replay.py`, `analyze.py` (see below). Not in the image. |
+| `docs/V2_MERGE.md` | How components merge into v2, plus the prompt for component chats. |
 | `CLAUDE.md` | Context and status for Claude Code sessions. |
 
 `kit/` is excluded from the Docker image by `.dockerignore`.

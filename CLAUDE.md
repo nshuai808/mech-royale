@@ -39,6 +39,9 @@ layout and limits, and `kit/protocol.md` for the full rules. This file is the sh
   death are the original recording's; only answer times, actions and modes are ours. Replays test timing,
   crashes and decisions, not play strength. Play strength = practice submissions (or a future simulator).
 
+## Merging components into v2
+See `docs/V2_MERGE.md`: what v2 contains, the integration contract (action-field ownership, goal priority, params, budgets), a merge checklist, the `survival-v1` conflict, and the prompt to paste into each component chat.
+
 ## Workflow
 - `main` is what gets scored. Experiments on branches; merge after `check.py` passes.
 - Before every submission: `check.py` locally, then the docker replay above, and look at p99 answer time (keep it well under 35 ms).
