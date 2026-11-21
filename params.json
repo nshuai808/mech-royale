@@ -1,0 +1,9 @@
+{
+  "_note": "Knobs for zone.py (ZoneParams) and drops.py (DropParams); partial overrides allowed, a bad file = defaults.",
+  "zone": {
+    "enabled": true
+  },
+  "drops": {
+    "enabled": true
+  }
+}

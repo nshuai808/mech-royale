@@ -3,10 +3,11 @@
 Every decision (10/s, 50 ms budget on 1 CPU):
   1. Read the world: threats (visible mechs, recent damage, near weapon sounds), zone timing, loot.
   2. Pick a mode, in priority order:
-       zone    outside the live circle, or late for the next one: run in (A* path), still facing threats
+       zone    outside the live circle, late for the next one, or zone.py says CRITICAL: run in, facing threats
        evade   outnumbered or hurt: go to a spot the threats can't see (cover search), shooting back
        fight   a fight we should take: strafe, keep weapon range, shoot
-       drop    a supply drop nearby and nobody around: capture it (3 cubes, full HP)
+       (capture: standing in a supply-drop ring we hold outranks evade/fight: 4 s alone = 3 cubes + full HP)
+       drop    a supply drop worth it and nobody near us (drops.py): approach, wait off the ring, capture
        loot    a weapon / cube nearby: take it; shoot nearby crates early
        heal    hurt and safe: stand still (silent) and regenerate
        move    get inside the next circle (with margin)
@@ -16,13 +17,17 @@ Every decision (10/s, 50 ms budget on 1 CPU):
 
 Read protocol.md for the rules; numbers come from hello.config.
 """
+import json
 import math
+import os
 import random
 import time
 import traceback
 
 import botlog
+import drops
 import mechfight as mf
+import zone
 from nav import AStar, Map
 
 TAU = 2 * math.pi
@@ -41,6 +46,15 @@ def wrap(a):
 def norm(x, y):
     d = math.hypot(x, y)
     return (x / d, y / d) if d > 1e-9 else (0.0, 0.0)
+
+
+def load_params():
+    """params.json next to this file (zone / drops knobs). A missing or bad file means the defaults."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "params.json")) as f:
+            return json.load(f)
+    except Exception:
+        return {}
 
 
 class Bot:
@@ -77,6 +91,20 @@ class Bot:
         self.target_id = None
         self.known = {}                  # enemy id -> (t_seen, x, y)
         self.zone_commit = False         # once a zone run starts, finish it (no flip-flopping)
+        # zone tracker (H-ZON) and supply-drop planner (H-DRP): any failure = that component has no opinion
+        params = load_params()
+        self.zt = self.dp = None
+        self.zp, self.dd = None, drops.DropDecision(reason="off")
+        try:
+            if (params.get("zone") or {}).get("enabled", True):
+                self.zt = zone.ZoneTracker(hello, params.get("zone"))
+        except Exception:
+            mf.log("zone tracker init failed:\n" + traceback.format_exc())
+        try:
+            if (params.get("drops") or {}).get("enabled", True):
+                self.dp = drops.DropPlanner(hello, params.get("drops"))
+        except Exception:
+            mf.log("drop planner init failed:\n" + traceback.format_exc())
 
     # ================================================================== main
     def act(self, obs):
@@ -89,6 +117,15 @@ class Bot:
         self.stats = me.get("stats", {})
         self._remember(obs)
         self._zone(obs)
+        self.zp = None
+        if self.zt is not None:
+            try:
+                self.zp = self.zt.update(obs)
+            except Exception:
+                self.zp = None
+        self.dd = drops.DropDecision(reason="off")
+        if self.dp is not None:
+            self.dd = self.dp.step(obs, zone_plan=self.zp)   # never raises
 
         act = {"tick": obs["tick"]}
         if obs.get("offer"):
@@ -116,18 +153,28 @@ class Bot:
 
         move, boost, why = None, False, ""
         need_zone, hurry = self._zone_need()
+        zp = self.zp
+        zone_crit = zp is not None and zp.goal is not None and zp.urgency >= zone.CRITICAL
+        if zone_crit:                    # the escape would cost a lot of HP: go now (H-ZON)
+            need_zone = hurry = True
         if not need_zone:
             self.zone_commit = False
         elif hurry or not me["in_zone"]:
             self.zone_commit = True
         hurry = hurry or self.zone_commit
         close = [e for e in enemies if e["_d"] < 150]
+        dd = self.dd
+        capturing = dd.goal is not None and dd.phase == "capture"
 
         # ---------------------------------------------------------- modes
         if not me["in_zone"] or hurry:
-            self.mode, why = "zone", "outside" if not me["in_zone"] else "late"
+            self.mode, why = "zone", "outside" if not me["in_zone"] else ("critical" if zone_crit else "late")
             move = self._go_circle(self.gx, self.gy, self.gr)
             boost = me["energy"] > 20 and (not me["in_zone"] or hurry)
+        elif capturing:
+            # inside a ring we hold: 4 s alone = 3 cubes + full HP. Stay (and keep shooting) unless it stalls.
+            self.mode, why = "drop", dd.reason
+            move = dd.move if dd.move and (dd.move[0] or dd.move[1]) else None
         elif threats and (len(exposed) >= 2 or self._should_evade(close, hp_frac, recently_hurt, target)):
             self.mode = "evade"
             move, why = self._evade(threats)
@@ -139,12 +186,13 @@ class Bot:
             self.mode = "hide"
             move, why = self._evade(threats)
         else:
-            drop = self._good_drop(obs, enemies)
+            drop = dd.goal is not None
             loot = None if drop else self._loot_goal(obs)
             if drop:
-                self.mode, why = "drop", f"drop {drop['id']}"
-                dx, dy = drop["pos"][0] - x, drop["pos"][1] - y
-                move = None if math.hypot(dx, dy) < drop["radius"] * 0.5 else self._go_point(drop["pos"][0], drop["pos"][1])
+                self.mode, why = "drop", f"{dd.drop_id} {dd.phase} {dd.reason}"
+                gx, gy = dd.goal[0], dd.goal[1]
+                move = None if math.hypot(gx - x, gy - y) < 2.0 else self._go_point(gx, gy)
+                boost = dd.boost and me["energy"] > 30
             elif loot:
                 self.mode, why = "loot", loot[2]
                 move = self._go_point(loot[0], loot[1])
@@ -159,8 +207,11 @@ class Bot:
                 move = None
 
         # ---------------------------------------------------------- legs
-        mv = self._steer(move) if move is not None else (0.0, 0.0)
-        mv, jump, boost2 = self._unstick(mv, move is not None)
+        if self.mode == "drop" and capturing:
+            mv, jump, boost2 = (move if move is not None else (0.0, 0.0)), False, False   # small in-ring steps, no jets
+        else:
+            mv = self._steer(move) if move is not None else (0.0, 0.0)
+            mv, jump, boost2 = self._unstick(mv, move is not None)
         if move is not None and self.mode in ("move", "loot", "heal", "drop") and not boost and not boost2:
             pass  # walking at full speed: faster than sneaking, and the squad hunts us anyway
         act["move"] = [round(mv[0], 3), round(mv[1], 3)]
@@ -175,7 +226,8 @@ class Bot:
             act.update(loot_take)
 
         botlog.trace(obs["tick"], mode=self.mode, why=why, target=None if target is None else target["id"],
-                     hp=round(me["hp"]), ms=round((time.perf_counter() - t0) * 1000, 2))
+                     hp=round(me["hp"]), zone=zp.urgency_name if zp else None,
+                     drop=f"{dd.drop_id}|{dd.phase}" if dd.goal is not None else dd.reason, ms=round((time.perf_counter() - t0) * 1000, 2))
         mf.draw.label(f"{self.mode} {why} hp {me['hp']:.0f}")
         return act
 
@@ -336,20 +388,6 @@ class Bot:
         if "mortar" in kinds:
             return 60, 170
         return 35, 110
-
-    def _good_drop(self, obs, enemies):
-        if any(e["_d"] < 120 for e in enemies):
-            return None
-        for d in obs.get("drops", []):
-            dist = math.dist(d["pos"][:2], (self.x, self.y))
-            if dist > 140 or d.get("holder") not in (None, self.me["id"]):
-                continue
-            if not self.in_safe(d["pos"][0], d["pos"][1], ahead=15):
-                continue
-            if d.get("lands_in", 0) > dist / self.stats.get("walk_speed", 11.7) + 8:
-                continue
-            return d
-        return None
 
     def _loot_goal(self, obs):
         me, x, y = self.me, self.x, self.y

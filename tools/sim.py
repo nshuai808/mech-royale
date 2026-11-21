@@ -12,7 +12,9 @@ What it models: the real map grid (walls, sight blockers; nav.py), the zone sche
 acceleration, wall sliding, aim slew, gun bullets that travel (spread, range, walls, rear x1.5), magazine
 and reload, HP regen, zone damage, vision (45 m around + 120 deg wedge, buildings block, 5 s memory),
 gun/step sounds, placement. What it doesn't: climbing and jets (walls are impassable), terrain height
-in shots, trees, loot/crates/cubes/NPCs/upgrades/drops, mortar/laser/lightning. So it tests movement,
+in shots, trees, loot/crates/cubes/NPCs/upgrades, mortar/laser/lightning. Supply drops ARE modelled
+(called at drops.times, land fall_s later in the next circle, alone in the ring capture_s -> full HP, energy,
++cubes as +hp_per_cube max HP); --drop-rivals P sends the nearest idle house bot to a drop with probability P. So it tests movement,
 zone play, cover and gunfights. It is NOT the real game: use it for relative comparisons and sanity
 checks, and confirm with practice submissions.
 """
@@ -64,6 +66,7 @@ class Mech:
         self.ammo, self.gun_cd, self.reload = g["mag"], 0.0, 0.0
         self.last_combat = -99.0
         self.alive, self.place, self.kills = True, None, 0
+        self.cubes, self.base_hp, self.drop_target = 0, m["hp"], None
         self.events = []
         self.seen = {}          # id -> last time seen (for 5 s memory)
         self.last_step = -9.0
@@ -72,7 +75,7 @@ class Mech:
 
 
 class Sim:
-    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False):
+    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False, drop_rivals=0.5):
         self.cfg, self.map, self.rng = cfg, mp, random.Random(seed)
         random.seed(seed)
         self.bot_cmd, self.out, self.verbose = bot_cmd, out, verbose
@@ -82,6 +85,9 @@ class Sim:
         self.t, self.tick = 0.0, 0
         self.bullets = []
         self.sounds = []        # (t, x, y, kind, by)
+        self.drops, self.drop_rivals = [], drop_rivals
+        self.drop_cfg = cfg.get("drops") or {}
+        self.drop_times = list(self.drop_cfg.get("times") or [])
         self._zone_init()
         self._spawn()
 
@@ -290,6 +296,47 @@ class Sim:
         elif self.t - m.last_combat > mc["regen_delay"] and m.hp < m.max_hp:
             m.hp = min(m.max_hp, m.hp + mc["regen_per_s"] * self.dt)
 
+    # ------------------------------------------------------------------ supply drops
+    def _drops_tick(self):
+        dc = self.drop_cfg
+        while self.drop_times and self.t >= self.drop_times[0]:
+            self.drop_times.pop(0)
+            x, y = self._free_point(self.nc[0], self.nc[1], max(5.0, self.nr * 0.8))
+            d = {"id": 20000 + len(self.drops), "x": x, "y": y, "z": self.map.ground(x, y), "land": self.t + dc.get("fall_s", 25),
+                 "holder": None, "progress": 0.0, "taken": False}
+            self.drops.append(d)
+            if self.rng.random() < self.drop_rivals:   # a rival house bot goes for it (not one of the hunters)
+                hunters = self._hunters()
+                idle = [m for m in self.mechs if m.alive and m is not self.me and m.id not in hunters and m.drop_target is None]
+                if idle:
+                    min(idle, key=lambda m: math.hypot(m.x - x, m.y - y)).drop_target = d["id"]
+        rad, cap = dc.get("radius", 8), dc.get("capture_s", 4)
+        for d in self.drops:
+            if d["taken"] or self.t < d["land"]:
+                continue
+            inside = [m for m in self.mechs if m.alive and math.hypot(m.x - d["x"], m.y - d["y"]) <= rad]
+            if len(inside) == 1:
+                m = inside[0]
+                if d["holder"] != m.id:
+                    d["holder"], d["progress"] = m.id, 0.0
+                d["progress"] += self.dt
+                if d["progress"] >= cap:
+                    d["taken"] = True
+                    cc = self.cfg["cubes"]
+                    m.cubes += dc.get("cubes", 3)
+                    m.max_hp = m.base_hp * (1 + cc["hp_per_cube"] * min(m.cubes, cc["stat_cap"]))
+                    m.hp, m.energy = m.max_hp, self.cfg["mech"]["energy"]
+                    m.events.append({"type": "drop", "id": d["id"], "cubes": m.cubes})
+                    if m is self.me:
+                        self.me_drops = getattr(self, "me_drops", 0) + 1
+            elif not inside:
+                d["holder"], d["progress"] = None, 0.0
+        for m in self.mechs:
+            if m.drop_target is not None:
+                d = next(dd for dd in self.drops if dd["id"] == m.drop_target)
+                if d["taken"]:
+                    m.drop_target = None
+
     # ------------------------------------------------------------------ perception
     def sees(self, a, b):
         d = math.hypot(b.x - a.x, b.y - a.y)
@@ -310,7 +357,7 @@ class Sim:
             if self.t - me.seen.get(m.id, -99) <= self.cfg["vision"].get("memory_s", 5):
                 others.append({"id": m.id, "kind": "mech", "pos": [round(m.x, 2), round(m.y, 2), round(m.z, 2)],
                                "vel": [round(m.vx, 2), round(m.vy, 2), 0], "aim": [round(m.yaw, 3), round(m.pitch, 3)],
-                               "hp": round(m.hp), "max_hp": m.max_hp, "cubes": 0, "weapons": ["gun"], "charging": False})
+                               "hp": round(m.hp), "max_hp": round(m.max_hp), "cubes": m.cubes, "weapons": ["gun"], "charging": False})
         sounds = []
         rng_ = self.cfg["sound"]["range"]
         noise = math.radians(self.cfg["sound"]["bearing_noise_deg"])
@@ -326,13 +373,16 @@ class Sim:
         obs = {
             "type": "obs", "tick": self.tick, "t": round(self.t, 2), "alive": sum(m.alive for m in self.mechs),
             "self": {"id": me.id, "pos": [round(me.x, 2), round(me.y, 2), round(me.z, 2)], "vel": [round(me.vx, 2), round(me.vy, 2), 0],
-                     "aim": [round(me.yaw, 3), round(me.pitch, 3)], "hp": round(me.hp, 1), "max_hp": me.max_hp,
-                     "energy": round(me.energy, 1), "max_energy": mc["energy"], "grounded": True, "cubes": 0, "upgrades": [],
+                     "aim": [round(me.yaw, 3), round(me.pitch, 3)], "hp": round(me.hp, 1), "max_hp": round(me.max_hp, 1),
+                     "energy": round(me.energy, 1), "max_energy": mc["energy"], "grounded": True, "cubes": me.cubes, "upgrades": [],
                      "weapons": [{"kind": "gun", "cooldown": round(me.gun_cd, 2), "ammo": me.ammo, "reload": round(max(0, me.reload), 2),
                                   "stats": dict(g)}, None],
                      "in_zone": self.in_zone(me), "stats": dict(mc)},
             "mechs": others, "projectiles": [], "crates": [], "cubes": [], "pickups": [], "sounds": sounds, "beams": [],
-            "events": me.events, "drops": [], "offer": None,
+            "events": me.events, "offer": None,
+            "drops": [{"id": d["id"], "pos": [round(d["x"], 2), round(d["y"], 2), round(d["z"], 2)], "radius": self.drop_cfg.get("radius", 8),
+                       "lands_in": round(max(0.0, d["land"] - self.t), 2), "capture_s": self.drop_cfg.get("capture_s", 4),
+                       "progress": round(d["progress"], 2), "holder": d["holder"]} for d in self.drops if not d["taken"]],
             "zone": {"center": [round(self.start_c[0], 2), round(self.start_c[1], 2)] if self.t < self.ss else [round(self.zc[0], 2), round(self.zc[1], 2)],
                      "radius": round(self.start_r if self.t < self.ss else self.zr, 2),
                      "next_center": [round(self.nc[0], 2), round(self.nc[1], 2)], "next_radius": self.nr,
@@ -361,6 +411,9 @@ class Sim:
         hunting = m.id in hunters and me.alive
         if not self.in_zone(m) or (cd > self.nr - margin and (self.t > self.ss - 15 or not hunting)):
             want = self._house_path(m, self.nc[0], self.nc[1], max(3.0, self.nr - margin))
+        elif m.drop_target is not None and not (hunting and sees):
+            dd = next(q for q in self.drops if q["id"] == m.drop_target)
+            want = self._house_path(m, dd["x"], dd["y"], 2.0)
         elif hunting:
             if sees and d < 90:
                 if self.t > m.strafe_t:
@@ -514,6 +567,7 @@ class Sim:
                 if m.alive:
                     self._upkeep(m)
             self._zone_tick()
+            self._drops_tick()
             self.sounds = [s for s in self.sounds if self.t - s[0] < 0.2]
             # placements: everyone who died this tick shares the place
             died = [m for m in self.mechs if not m.alive and m.place is None]
@@ -543,7 +597,7 @@ class Sim:
             time.sleep(0.05)
             self.log.close()
         cause = "survived" if me.alive else ("zone" if getattr(me, "killer", None) is None else f"#{me.killer.id} ({me.killer.skill})")
-        return {"place": me.place, "kills": me.kills, "t": round(getattr(me, "dead_t", self.t), 1), "cause": cause, "late": late, "errs": self.errs[-5:]}
+        return {"place": me.place, "kills": me.kills, "drops": getattr(self, "me_drops", 0), "t": round(getattr(me, "dead_t", self.t), 1), "cause": cause, "late": late, "errs": self.errs[-5:]}
 
 
 def main():
@@ -553,9 +607,11 @@ def main():
     i = argv.index("--")
     ap = argparse.ArgumentParser()
     ap.add_argument("--matches", type=int, default=8)
+    ap.add_argument("--first", type=int, default=0, help="start at match index N (seed*1000+N), to rerun one match")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--record", action="store_true", help="write a replay file per match into replays/")
     ap.add_argument("--budget-ms", type=float, default=50.0)
+    ap.add_argument("--drop-rivals", type=float, default=0.5, help="chance a house bot goes for each supply drop")
     a = ap.parse_args(argv[:i])
     cmd = argv[i + 1:]
     import gzip
@@ -563,12 +619,12 @@ def main():
         cfg = json.loads(f.readline())["config"]
     mp = Map(os.path.join(ROOT, "kit", "arena"), cfg["mech"]["height"], cfg["mech"]["step_up"], cfg["mech"]["max_slope_deg"], cfg["mech"]["eye_height"])
     pts, t0 = [], time.time()
-    for n in range(a.matches):
+    for n in range(a.first, a.first + a.matches):
         seed = a.seed * 1000 + n
         out = os.path.join(rl.REPLAYS, f"sim-s{seed}.jsonl.gz") if a.record else None
-        r = Sim(cfg, mp, seed, cmd, out).run(a.budget_ms)
+        r = Sim(cfg, mp, seed, cmd, out, drop_rivals=a.drop_rivals).run(a.budget_ms)
         pts.append(16 - r["place"])
-        print(f"match {n + 1:2} seed {seed}: place {r['place']:2} ({16 - r['place']:2} pts)  died {r['cause']:16} at {r['t']:5.1f}s  kills {r['kills']}"
+        print(f"match {n + 1:2} seed {seed}: place {r['place']:2} ({16 - r['place']:2} pts)  died {r['cause']:16} at {r['t']:5.1f}s  kills {r['kills']}  drops {r['drops']}"
               + (f"  late {r['late']}" if r["late"] else "") + (f"  stderr: {r['errs'][-1]}" if r["errs"] else ""), flush=True)
     mean = sum(pts) / len(pts)
     sd = (sum((p - mean) ** 2 for p in pts) / max(1, len(pts) - 1)) ** 0.5
