@@ -229,7 +229,11 @@ class Bot:
         hp_frac = me["hp"] / max(1.0, me["max_hp"])
         recently_hurt = self.t - self.last_hurt_t < 2.5
 
-        target = self._choose_target(enemies, npcs)
+        if not hasattr(self, "heal_gate_hp"):
+            heal_gate = load_params().get("heal_gate") or {}
+            self.heal_gate_hp = heal_gate.get("hp_frac", 0.7) if heal_gate.get("enabled") else 0.0
+        healing = hp_frac < self.heal_gate_hp
+        target = self._choose_target(enemies, npcs, healing)
         # everyone we know about nearby, including ones that just ducked out of view
         threats = [(kx, ky) for (_, kx, ky) in self.known.values() if math.hypot(kx - x, ky - y) < 220]
         up = self.unseen_p
@@ -292,6 +296,14 @@ class Bot:
             self.mode = "evade"
             move, why = self._evade(threats)
             boost = me["energy"] > 25 and (hp_frac < 0.6 or len(exposed) >= 2)
+        elif healing:
+            self.mode, why = "heal_gate", "hold for regen"
+            if need_zone:
+                move, why = self._go_circle(self.gx, self.gy, self.gr), "into next circle"
+            else:
+                visible_threats = [(tx, ty) for tx, ty in threats if m is None or m.los(x, y, tx, ty)]
+                if visible_threats:
+                    move, why = self._evade(visible_threats)
         elif target is not None:
             self.mode, why = "fight", f"#{target['id']}"
             move = self._fight_move(target)
@@ -549,7 +561,7 @@ class Bot:
         return math.hypot(px - cx, py - cy) < r - 4
 
     # ================================================================== targeting
-    def _choose_target(self, enemies, npcs):
+    def _choose_target(self, enemies, npcs, healing=False):
         best, best_s = None, -1e9
         now = self.t
         laser = any(w and w["kind"] == "laser" for w in self.me["weapons"])
@@ -557,6 +569,8 @@ class Bot:
         for e in enemies:
             hit = self.attackers.get(e["id"])
             shooting_us = hit and now - hit[0] < 4
+            if healing and not shooting_us:
+                continue
             if e["_d"] > max(230, far) or (e["_d"] > far and not shooting_us and not self.aggro):
                 continue  # don't start long-range fights: they only draw the squad in
             s = -e["_d"] * 0.05
@@ -573,7 +587,7 @@ class Bot:
                 hit = self.attackers.get(n["id"])
                 attacking = hit and now - hit[0] < 4
                 hp_ok = self.me["hp"] > 0.5 * self.me["max_hp"]
-                if attacking or (hp_ok and self.t < 240 and n["_d"] < 150):   # 350 HP, 2 cubes each: farm them
+                if attacking or (not healing and hp_ok and self.t < 240 and n["_d"] < 150):  # 350 HP, 2 cubes each
                     if best is None or n["_d"] < best["_d"]:
                         best = n
         self.target_id = best["id"] if best else None

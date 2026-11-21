@@ -79,6 +79,10 @@
     "finish_s": 1.5,
     "hp_frac": 1.01
   },
+  "heal_gate": {
+    "enabled": true,
+    "hp_frac": 0.7
+  },
   "evade_fix": {
     "_note": "once evade starts, stay in it commit_s (unless the target dies within unseen_hit.finish_s); cover search out to the last of radii. enabled=false restores the branch base.",
     "enabled": true,
