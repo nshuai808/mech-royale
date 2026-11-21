@@ -9,7 +9,7 @@ PU = 3.5   # pickup radius in the kit config
 
 def make(ctx=True, t=10.0):
     b = B.Bot.__new__(B.Bot)          # skip the map build: loot choice only needs me, pos, foe memory
-    b.upg_ctx, b.wpn_ctx, b.foe_kit = False, ctx, {}
+    b.upg_ctx, b.wpn_ctx, b.foe_kit, b.guard = False, ctx, {}, False
     b.wpn_k, b.wpn_n0, b.wpn_margin, b.wpn_mortar_gun = 1.0, 3.0, 0.5, 1.6
     b._rank_t, b._rank = None, dict(B.WEAPON_RANK)
     b.x = b.y = b.z = 0.0

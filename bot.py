@@ -118,6 +118,12 @@ class Bot:
         self.wpn_margin = float(wp.get("swap_margin", 0.5)) # a pickup must out-rank what it replaces by this much
         self.wpn_mortar_gun = float(wp.get("mortar_gun_swap", 1.6))   # mortar replaces the gun at this rank
         self._rank_t, self._rank = None, dict(WEAPON_RANK)
+        # special guard (params.json "special_guard"): no weapon swap that drops a held weapon while in a fight;
+        # the new weapon can't fire for 1-1.65 s and the dropped one may go to the enemy we're fighting
+        gp = load_params().get("special_guard") or {}
+        self.guard = bool(gp.get("enabled", False))
+        self.guard_r = float(gp.get("enemy_r", 150))       # a visible enemy mech this close = in a fight
+        self.guard_s = float(gp.get("quiet_s", 2.5))       # ...or we took weapon damage this recently
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -598,6 +604,13 @@ class Bot:
                 best, best_d = c, d
         return best
 
+    def _in_fight(self, obs):
+        t = self.t
+        if t - self.last_hurt_t < self.guard_s:   # (not last_dealt_t: shooting a crate isn't a fight)
+            return True
+        return any(m.get("kind") == "mech" and math.dist(m["pos"][:2], (self.x, self.y)) < self.guard_r
+                   for m in obs.get("mechs", []))
+
     def _gun_swap(self, kind):
         """True if a pickup of this kind should replace the gun in slot 0 (we already hold another special)."""
         slots = self.me["weapons"]
@@ -616,6 +629,8 @@ class Bot:
                 continue
             if slots[1] is None:
                 return {"take": p["id"]}
+            if self.guard and self._in_fight(obs):
+                return None              # every remaining case drops a weapon: wait until the fight is over
             R = self._ranks()
             margin = self.wpn_margin if self.wpn_ctx else 1e-9
             if R[p["kind"]] - R[slots[1]["kind"]] >= margin and not slots[1].get("charge"):

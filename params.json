@@ -21,10 +21,16 @@
   },
   "weapon_ctx": {
     "_note": "weapon rank shifted by the weapon triangle vs weapons seen on enemies (Bot._ranks); off = fixed WEAPON_RANK",
-    "enabled": true,
+    "enabled": false,
     "counter": 1.0,
     "shrink_n": 3,
     "swap_margin": 0.5,
     "mortar_gun_swap": 1.6
+  },
+  "special_guard": {
+    "_note": "no weapon swap that drops a held weapon while an enemy mech is within enemy_r or we were hit within quiet_s (Bot._take, Bot._in_fight)",
+    "enabled": true,
+    "enemy_r": 150,
+    "quiet_s": 2.5
   }
 }
