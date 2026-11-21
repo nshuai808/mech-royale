@@ -89,3 +89,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sat | `eed4dc6` | 0.73 | `v2-zone-drops` (v2-integrated arbiter + zone.py + drops.py). Big regression; the integrated arbiter, not zone/drops, is the suspect (it was already below main in the sim). |
 | Sat | `b064eeb` | **3.02** | `claude/nifty-galileo-lw5l5t`: main's v2 + zone.py (critical -> zone run) + drops.py (supply drops, hold the ring while capturing). Sim had it neutral (2.21 vs 2.35). |
 | Sat | `ee4f3fc` | 2.90 | + face threat while evading, time-based third-party check, unstick sidestep. Neutral (noise ~0.3); sim also neutral. |
+| Sat | `5c59a78` | **3.40** | ee4f3fc + aggressive loot: lightning first, two specials (drop the gun), wider loot range, shoot crates. New best. |
