@@ -37,7 +37,23 @@ class Bot:
         except Exception as e:  # no policy = v1 behaviour (pick 0)
             botlog.trace(0, mode="upgrades_error", err=repr(e))
 
-    def _loot(self, obs):
+    def _perceive(self, obs):
+        """World model update (H-PER). Returns loot threats, or None to let loot use its own fallback."""
+        if self.per is None:
+            return None
+        try:
+            self.world = self.per.update(obs)
+            self.per_errors = 0
+            return self.per.loot_threats(loot.Threat) or None
+        except Exception as e:
+            self.world = None
+            self.per_errors += 1
+            botlog.trace(obs["tick"], mode="per_error", err=repr(e))
+            if self.per_errors >= 20:
+                self.per = None
+            return None
+
+    def _loot(self, obs, threats=None):
         """Loot decision; any failure falls back to v1 behaviour (no loot) instead of crashing."""
         try:
             return self.planner.step(obs, path_cost=self.nav.path_cost if self.nav else None)
