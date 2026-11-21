@@ -91,6 +91,7 @@ class Bot:
         self.target_id = None
         self.known = {}                  # enemy id -> (t_seen, x, y)
         self.zone_commit = False         # once a zone run starts, finish it (no flip-flopping)
+        self.stuck_at, self.side_sign, self.escape_climb = [], 1, True   # recent stuck spots (t, x, y); sidestep side
         # zone tracker (H-ZON) and supply-drop planner (H-DRP): any failure = that component has no opinion
         params = load_params()
         self.zt = self.dp = None
@@ -535,20 +536,29 @@ class Bot:
         """If we commanded movement for 1.5 s and barely moved, jump-jet over or slide around."""
         t = self.t
         if t < self.escape_until:
+            if not self.escape_climb:
+                return self.escape_dir, False, False
             jet = self.me["energy"] > 15
             return self.escape_dir, self.me["grounded"], jet and not self.me["grounded"]
         if moving and len(self.hist) >= 16 and (mv[0] or mv[1]):
             t_old, x_old, y_old = self.hist[-16]
             if t - t_old >= 1.4 and math.hypot(self.x - x_old, self.y - y_old) < 2.0:
-                if self.me["energy"] > 40:
+                again = any(t - st < 10.0 and math.hypot(self.x - sx, self.y - sy) < 6.0 for st, sx, sy in self.stuck_at)
+                self.stuck_at = [(st, sx, sy) for st, sx, sy in self.stuck_at if t - st < 10.0] + [(t, self.x, self.y)]
+                if again:
+                    # the climb failed here before: sidestep along the wall, alternating sides
+                    self.side_sign = -self.side_sign
+                    self.escape_dir = (-mv[1] * self.side_sign, mv[0] * self.side_sign)
+                elif self.me["energy"] > 40:
                     self.escape_dir = mv  # climb over it
                 else:
                     a = math.atan2(mv[1], mv[0]) + self.rng.choice((-1, 1)) * self.rng.uniform(1.2, 2.0)
                     self.escape_dir = (math.cos(a), math.sin(a))
+                self.escape_climb = not again
                 self.escape_until = t + 1.2
                 self.path, self.job = None, None
                 self.hist.clear()
-                return self.escape_dir, True, False
+                return self.escape_dir, not again, False
         return mv, False, False
 
     # ================================================================== aim and weapons
