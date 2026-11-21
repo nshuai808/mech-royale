@@ -75,6 +75,8 @@ class Bot:
         self.job, self.job_goal, self.path, self.path_t = None, None, None, -99.0
         self.mode = "hold"
         self.target_id = None
+        self.known = {}                  # enemy id -> (t_seen, x, y)
+        self.zone_commit = False         # once a zone run starts, finish it (no flip-flopping)
 
     # ================================================================== main
     def act(self, obs):
@@ -97,16 +99,28 @@ class Bot:
         for e in enemies + npcs:
             e["_d"] = math.dist(e["pos"][:2], (x, y))
         enemies.sort(key=lambda e: e["_d"])
+        for e in enemies:
+            self.known[e["id"]] = (self.t, e["pos"][0], e["pos"][1])
+        self.known = {k: v for k, v in self.known.items() if self.t - v[0] < 12}
         hp_frac = me["hp"] / max(1.0, me["max_hp"])
         recently_hurt = self.t - self.last_hurt_t < 2.5
 
         target = self._choose_target(enemies, npcs)
-        threats = [(e["pos"][0], e["pos"][1]) for e in enemies if e["_d"] < 180]
-        if not threats and recently_hurt and self.hurt_bearing is not None:
-            threats = [(x + 80 * math.cos(self.hurt_bearing), y + 80 * math.sin(self.hurt_bearing))]
+        # everyone we know about nearby, including ones that just ducked out of view
+        threats = [(kx, ky) for (_, kx, ky) in self.known.values() if math.hypot(kx - x, ky - y) < 220]
+        if recently_hurt and self.hurt_bearing is not None and not any(
+                self.attackers.get(e["id"], (-99,))[0] > self.t - 2.5 for e in enemies):
+            threats.append((x + 80 * math.cos(self.hurt_bearing), y + 80 * math.sin(self.hurt_bearing)))
+        m = self.map
+        exposed = [e for e in enemies if e["_d"] < 200 and (m is None or m.los(x, y, e["pos"][0], e["pos"][1]))]
 
         move, boost, why = None, False, ""
         need_zone, hurry = self._zone_need()
+        if not need_zone:
+            self.zone_commit = False
+        elif hurry or not me["in_zone"]:
+            self.zone_commit = True
+        hurry = hurry or self.zone_commit
         close = [e for e in enemies if e["_d"] < 150]
 
         # ---------------------------------------------------------- modes
@@ -114,13 +128,16 @@ class Bot:
             self.mode, why = "zone", "outside" if not me["in_zone"] else "late"
             move = self._go_circle(self.gx, self.gy, self.gr)
             boost = me["energy"] > 20 and (not me["in_zone"] or hurry)
-        elif threats and self._should_evade(close, hp_frac, recently_hurt, target):
+        elif threats and (len(exposed) >= 2 or self._should_evade(close, hp_frac, recently_hurt, target)):
             self.mode = "evade"
             move, why = self._evade(threats)
-            boost = me["energy"] > 35 and hp_frac < 0.5
-        elif target is not None and (target["kind"] == "mech" or target["_d"] < 70):
+            boost = me["energy"] > 25 and (hp_frac < 0.6 or len(exposed) >= 2)
+        elif target is not None:
             self.mode, why = "fight", f"#{target['id']}"
             move = self._fight_move(target)
+        elif exposed or (threats and self.t - self.last_hurt_t < 6):
+            self.mode = "hide"
+            move, why = self._evade(threats)
         else:
             drop = self._good_drop(obs, enemies)
             loot = None if drop else self._loot_goal(obs)
@@ -232,11 +249,12 @@ class Bot:
         best, best_s = None, -1e9
         now = self.t
         for e in enemies:
-            if e["_d"] > 230:
-                continue
-            s = -e["_d"] * 0.05
             hit = self.attackers.get(e["id"])
-            if hit and now - hit[0] < 4:
+            shooting_us = hit and now - hit[0] < 4
+            if e["_d"] > 230 or (e["_d"] > 130 and not shooting_us):
+                continue  # don't start long-range fights: they only draw the squad in
+            s = -e["_d"] * 0.05
+            if shooting_us:
                 s += 6
             if "hp" in e and e.get("max_hp"):
                 s += (1 - e["hp"] / e["max_hp"]) * 5
@@ -274,7 +292,8 @@ class Bot:
         m = self.map
         if m is not None and (self.cover is None or self.t - self.cover_t > 0.6):
             ok = lambda px, py: self.in_safe(px, py)
-            self.cover = m.find_cover(self.x, self.y, threats[:3], ok, deadline=self.deadline - 0.006)
+            self.cover = m.find_cover(self.x, self.y, threats[:4], ok, radii=(8, 16, 26, 40), dirs=16,
+                                      deadline=self.deadline - 0.006)
             self.cover_t = self.t
         if self.cover:
             cx, cy, _ = self.cover

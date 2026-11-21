@@ -62,6 +62,13 @@ python3 tools/analyze.py replays/<file>.jsonl.gz --csv out.csv
 python3 tools/analyze.py --diff replays/A.jsonl.gz replays/B.jsonl.gz
 ```
 
+Local simulator and fuzz test (see CLAUDE.md for what the sim does and doesn't model):
+
+```sh
+python3 tools/sim.py --matches 12 --seed 1 -- python3 -u bot.py   # prints a score like the real one
+python3 tools/fuzz.py                                               # exceptions + worst decision time
+```
+
 In `bot.py`, call `botlog.trace(obs["tick"], mode="...", ...)` once per decision so reports show what the bot was trying to do.
 Replayed observations don't react to the bot: they test timing, crashes and decisions, not how well it plays.
 

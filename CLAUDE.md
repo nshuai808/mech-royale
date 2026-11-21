@@ -11,6 +11,13 @@ layout and limits, and `kit/protocol.md` for the full rules. This file is the sh
 - Decision every 0.1 s, **50 ms wall-time budget on 1 CPU**. Late = coast 1 s without firing, then idle.
 - Matches show us nothing but the score: **no stderr, no logs**. Local tools are our only visibility.
 
+## How practice scoring really works (key insight)
+The house squad never fights itself, so in practice **our points = house bots that die before us**, which
+are almost all our own kills (plus rare zone deaths). Surviving alone scores ~0. The squad sends its weakest
+bot first, one at a time, more as we kill them, all of them after ~5 min. So the practice recipe is: kill the
+lone hunter from a spot only it can see, regenerate to full, repeat. Starter 1.15 ~ one kill a match.
+The final is a real free-for-all against other teams: there, survival and placement matter.
+
 ## Rules that matter most for strategy (protocol.md)
 - Zone: `obs.zone` gives current and next circle + shrink window; outside = `dps` HP/s, no regen.
 - HP regen 45/s after 5 s without dealing or taking damage (not outside the zone).
@@ -30,8 +37,13 @@ layout and limits, and `kit/protocol.md` for the full rules. This file is the sh
 | `python3 kit/check/check.py -- python3 tools/record.py -- python3 -u bot.py` | Conformance check, recorded |
 | `python3 tools/analyze.py replays/<file>.jsonl.gz [--csv out.csv]` | Report: timing, HP, zone, damage by weapon/attacker, rear hits, loot, modes, last seconds, timeline |
 | `python3 tools/analyze.py --diff A.jsonl.gz B.jsonl.gz` | Where two bot versions decided differently on the same stream |
+| `python3 tools/sim.py --matches 12 --seed 1 [--record] -- python3 -u bot.py` | **Local simulator**: real map + zone, gun-only fights vs a 15-bot hunting squad. Prints a score like the real one |
+| `python3 tools/fuzz.py` | Throws generated observations (every weapon, loot, offers, drops, effects) at `Bot.act`: exceptions + worst time |
 
-- `record.py` wraps any bot command transparently, so it will also work with a simulator if we build one.
+- `record.py` wraps any bot command transparently.
+- `sim.py` is crude (no climbing/jets, gun only, no loot/NPCs/upgrades, house bots shoot us whenever they see us).
+  Calibration: the starter bot scores ~0.9-1.1 in the sim vs 1.15 real. Use it for relative comparisons on
+  12+ matches (s.e. is ~0.5 per 12) and always on two seed sets. `--record` writes replays with real HP/damage.
 - In the bot, call `botlog.trace(tick, mode=..., **fields)` once per decision. Off unless `MECH_TRACE=1`
   (the tools set it), so it costs nothing in matches. `analyze.py` reports time per mode and mode switching.
 - Replay files go in `replays/` (gitignored). Format documented in `tools/replaylog.py`.
@@ -46,12 +58,30 @@ layout and limits, and `kit/protocol.md` for the full rules. This file is the sh
 - Never force-push or delete a submitted commit; the repo must stay public until results are out.
 - Freeze by **Sun 9:00 AM ET**; cutoff **Sun 11:00 AM ET**.
 
+## Bot architecture (branch `survival-v1`)
+- `nav.py`: 2 m grids (walls incl. steep terrain, sight blockers, nav = walls grown 1 cell), rays, LOS,
+  `find_cover`, incremental `AStar` (time-budgeted per tick). Builds in ~0.3 s at hello.
+- `bot.py` modes, in priority: zone (committed once started) > evade (2+ enemies can see us, or losing) >
+  fight (only targets < 130 m or shooting us) > hide (seen / recently shot) > drop > loot > heal > move > hold.
+  Always faces the main threat. Gun lead, laser charge/release, lightning cone, mortar ballistic. Upgrade
+  preference list `UPGRADE_PREF`, weapon rank laser > lightning > mortar. Stuck -> jump-jet over or slide.
+- Timing: p99 ~2 ms on the stream, worst ~4 ms under fuzz (budget 50 ms).
+
+## Sim results (score, 12 matches each)
+| Version | seed 1 | seed 2 |
+| --- | --- | --- |
+| starter (main) | 0.67 (6 m) | 1.08 |
+| v1 (fights anything in range) | 0.83 (6 m) | - |
+| v2 (hide when 2+ see us, fight only the hunter) | 2.00 | 2.50 |
+| v2 + zone commit (current) | 2.00 | 2.00 |
+
 ## Status / next steps
-- [x] Repo set up from the Python starter (`bot.py` = kit example bot + a `botlog.trace` call).
-- [x] Logging harness: `tools/record.py`, `tools/replay.py`, `tools/analyze.py`, `botlog.py`.
-- [ ] Submit the unmodified starter once to confirm the pipeline (expect ~1.15).
-- [ ] Survival core: zone-aware movement with margin, cover / line-of-sight breaking, retreat + regen when hurt.
-- [ ] Weapons and loot: pick up by triangle, charge-laser handling, mortar lobs, offers and upgrades.
-- [ ] Squad handling: avoid being the weakest visible target; third-party instead of first contact.
-- [ ] Timing guard: fall back to a cheap action if a decision runs long.
-- [ ] Maybe: a crude local simulator (map collision + zone + simple enemies) so play strength can be tested offline.
+- [x] Repo set up from the Python starter.
+- [x] Logging harness, simulator, fuzz test.
+- [x] Survival bot v2 on branch `survival-v1` (not yet merged to main, not yet submitted).
+- [ ] Submit the starter (main) once and `survival-v1` once; log both scores in README.
+- [ ] Docker timing check of survival-v1 (`replay.py --repeat 3` in the sandbox; map build must stay well under the 20 s hello budget).
+- [ ] Early deaths at spawn (several sim matches die < 20 s): get out of sight first, then fight.
+- [ ] Better 1v1: peek from cover, fight at the corner, reload in cover, use regen between hunters.
+- [ ] Loot: go for laser/lightning early; cubes from kills (killed mechs drop cubes + 2).
+- [ ] Late game: max HP via cubes/plating so we outlast others when the zone closes to 0.
