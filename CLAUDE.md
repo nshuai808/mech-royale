@@ -99,4 +99,4 @@ Difference is inside the noise (s.e. ~0.18). Drop captures 12 vs 8 matches. The 
 - [ ] Late game: max HP via cubes/plating so we outlast others when the zone closes to 0.
 - [x] `eed4dc6` (`v2-zone-drops`, built on `v2-integrated`) scored **0.73** real. Don't build on `v2-integrated`.
 - [x] `claude/nifty-galileo-lw5l5t`: main's bot + `zone.py` (CRITICAL forces a zone run) + `drops.py` (replaces `_good_drop`;
-      holding a ring we capture outranks evade/fight), `params.json` knobs. Tests/check/fuzz pass. Sim neutral vs main. **Not submitted.**
+      holding a ring we capture outranks evade/fight), `params.json` knobs. Tests/check/fuzz pass. Sim neutral vs main. **Real 3.02** (new best).
