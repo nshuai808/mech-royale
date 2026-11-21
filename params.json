@@ -29,8 +29,14 @@
   },
   "special_guard": {
     "_note": "no weapon swap that drops a held weapon while an enemy mech is within enemy_r or we were hit within quiet_s (Bot._take, Bot._in_fight)",
-    "enabled": true,
+    "enabled": false,
     "enemy_r": 150,
     "quiet_s": 2.5
+  },
+  "mortar_lead": {
+    "_note": "lead mortar shells by the target's velocity times the shell flight time (Bot._mortar_lead); off = aim at the target",
+    "enabled": true,
+    "lead_frac": 0.8,
+    "max_lead_m": 40
   }
 }
