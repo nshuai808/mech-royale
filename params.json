@@ -2,7 +2,11 @@
   "_note": "Every tunable knob. Sections are read by bot.py; unknown keys are ignored. Edit here, not in code.",
   "loot": {
     "enabled": true,
-    "base": {"lightning": 1.0, "laser": 0.9, "mortar": 0.0},
+    "base": {
+      "lightning": 1.0,
+      "laser": 0.9,
+      "mortar": 0.0
+    },
     "_mortar_note": "mortar base 0 until H-AIM has a ballistic solver: v2 aims flat, so a mortar is only a cook-off liability",
     "detour_early_m": 150,
     "detour_mid_m": 60,
@@ -11,5 +15,23 @@
   "fire": {
     "special_margin": 0.9,
     "_note": "fire the slot-1 special only inside this fraction of its range"
+  },
+  "nav": {
+    "enabled": true,
+    "clearance_margin_m": 0.5,
+    "open_weight": 3.0,
+    "open_exp": 2.0,
+    "threat_weight": 6.0,
+    "slice_ms": 6.0,
+    "lookahead_m": 14.0,
+    "exposure_scale": 1.0,
+    "stuck_s": 1.0,
+    "_note": "grid is baked in navmap.bin (python3 tools/bake_nav.py); a different clearance_margin_m rebuilds at runtime (~2 s)"
+  },
+  "stealth": {
+    "mode": "hide_only",
+    "speed_cap_mps": 4.6,
+    "hold_radius_m": 15.0,
+    "_note": "mode: off | hide_only (stand still near the zone goal) | near_threat (also creep on a near step/boost/jet sound) | always"
   }
 }

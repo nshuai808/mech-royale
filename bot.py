@@ -6,6 +6,7 @@ import os
 import botlog
 import loot
 import mechfight as mf
+import nav
 
 
 def load_params():
@@ -27,11 +28,31 @@ class Bot:
         self.reach = cfg["loot"]["pickup_radius"]
         self.planner = loot.LootPlanner(cfg, loot.LootParams.from_dict(self.params.get("loot")))
         self.special_margin = self.params.get("fire", {}).get("special_margin", 0.9)
+        self.nav = self._build_nav(hello)
+
+    def _build_nav(self, hello):
+        """Navigator or None (nav off = v1 straight-line walking). Must never raise: a failed __init__ leaves the mech idle."""
+        try:
+            return nav.Navigator.create(hello, nav.NavParams.from_dict(self.params.get("nav")),
+                                        nav.StealthParams.from_dict(self.params.get("stealth")))
+        except Exception as e:
+            botlog.trace(0, mode="nav_error", err=repr(e))
+            return None
+
+    def _nav(self, obs, goal, default_goal):
+        """Navigation hint for this goal, or None (no opinion: keep the straight-line move)."""
+        if self.nav is None:
+            return None
+        try:
+            return self.nav.step(obs, goal, default_goal)
+        except Exception as e:
+            botlog.trace(obs["tick"], mode="nav_error", err=repr(e))
+            return None
 
     def _loot(self, obs):
         """Loot decision; any failure falls back to v1 behaviour (no loot) instead of crashing."""
         try:
-            return self.planner.step(obs)
+            return self.planner.step(obs, path_cost=self.nav.path_cost if self.nav else None)
         except Exception as e:
             botlog.trace(obs["tick"], mode="loot_error", err=repr(e))
             return loot.Decision(reason="error")
@@ -73,6 +94,18 @@ class Bot:
         act.update(move=[math.cos(yaw), math.sin(yaw)], aim=[yaw, 0.0],
                    boost=(not me["in_zone"]) or (climbing and not me["grounded"]),
                    jump=climbing or obs["tick"] % 40 == 0)
+        nd = self._nav(obs, goal, d.goal is None)   # nav owns the move direction; stealth may hold still or cap speed
+        if nd is not None:
+            if nd.move is not None:
+                act["move"] = [nd.move[0], nd.move[1]]
+            if (not nd.boost_ok and not climbing) or nd.hold:
+                act["boost"] = False
+            if nd.hold:
+                act["jump"] = False
+            if nd.jump:
+                act["jump"] = True
+            if nd.boost:
+                act["boost"] = True
         dist = None
         if enemies:
             t = enemies[0]["pos"]
@@ -85,7 +118,7 @@ class Bot:
         mode = "fight" if enemies else ("loot" if d.goal is not None else "to_zone")
         botlog.trace(obs["tick"], mode=mode, target=enemies[0]["id"] if enemies else None, in_zone=me["in_zone"],
                      loot=d.reason, loot_kind=d.kind, loot_u=round(d.utility, 2),
-                     weapons=[w["kind"] if w else None for w in me["weapons"]])
+                     weapons=[w["kind"] if w else None for w in me["weapons"]], nav=nd.reason if nd else None)
         return act
 
 

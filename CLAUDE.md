@@ -54,6 +54,7 @@ See `docs/V2_MERGE.md`: what v2 contains, the integration contract (action-field
 - [x] Logging harness: `tools/record.py`, `tools/replay.py`, `tools/analyze.py`, `botlog.py`.
 - [ ] Submit the unmodified starter once to confirm the pipeline (expect ~1.15).
 - [ ] Survival core: zone-aware movement with margin, cover / line-of-sight breaking, retreat + regen when hurt.
+- [x] Navigation + stealth v1 (branch `v2-nav`): `nav.py`, baked `navmap.bin`, `nav`/`stealth` in `params.json`. A* on a 4 m wall-clearance grid, stuck recovery, `path_cost` for loot, stand-still near the zone goal. No roof/jump-ledge routing, no dynamic threat input yet (hook exists: `threats=`). Tests: `test_nav.py`, `tools/nav_check.py`.
 - [x] Loot + weapon pick v1 (branch `v2-loot`): `loot.py`, knobs in `params.json`, straight-line walk to loot goal (no nav yet). Mortar base value is 0 until a ballistic aim solver exists.
 - [ ] Charge-laser handling, mortar lobs, offers and upgrades.
 - [ ] Squad handling: avoid being the weakest visible target; third-party instead of first contact.

@@ -68,7 +68,7 @@ Decisions worth knowing:
 | Component | Branch | Hook in `bot.py` | Params section | Status |
 | --- | --- | --- | --- | --- |
 | Loot and weapon choice (H-LOO, H-WPN) | `v2-loot` | `Bot._loot`, goal override, `take`/`drop`, `Bot._fire` | `loot`, `fire` | merged into `v2-loot`; untested against opponents |
-| Navigation and stealth (H-NAV, H-STL) | | | `nav`, `stealth` | |
+| Navigation and stealth (H-NAV, H-STL) | `v2-nav` | `Bot._build_nav`, `Bot._nav`; `path_cost=` into `LootPlanner.step`; after the move `act.update`: sets `move` from nav, `boost`/`jump` only to hold still or unstick | `nav`, `stealth` | merged into `v2-nav`; untested against opponents. Grid baked in `navmap.bin` (`python3 tools/bake_nav.py` after any map or `clearance_margin_m` change; a stale bake is rebuilt at runtime, about 1.5 s). Time slice 6 ms/tick. Offline check: `python3 tools/nav_check.py` |
 | Fight-or-flee and regen (H-ENG, H-REG) | | | `engage` | |
 | Zone and supply drops (H-ZON, H-DRP) | | | `zone`, `drops` | |
 | Aiming and movement (H-AIM, H-MOV) | | | `aim`, `move` | |
