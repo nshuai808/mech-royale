@@ -167,6 +167,15 @@ class Bot:
                 self.lp = late.LatePlanner(self.map, params.get("late"))
         except Exception:
             mf.log("late planner init failed:\n" + traceback.format_exc())
+        # Step 1 (research: potential-field dodging): sidestep incoming bullets and mortar shells; learn shooter
+        # positions from beams. Hitscan lasers can't be strafed (the shot goes where we are when it is released).
+        dp_ = params.get("dodge") or {}
+        on = dp_.get("enabled", True)
+        self.dodge_on = bool(on) and bool(dp_.get("bullets", True) or dp_.get("mortars", True))
+        self.dodge_bullets, self.dodge_mortars = bool(dp_.get("bullets", True)), bool(dp_.get("mortars", True))
+        self.beams_on = bool(on) and bool(dp_.get("beams", True))
+        self.dodge_weight = float(dp_.get("weight", 1.5))
+        self.dodge_flip = 1
 
     # ================================================================== main
     def act(self, obs):
@@ -202,6 +211,11 @@ class Bot:
         enemies.sort(key=lambda e: e["_d"])
         for e in enemies:
             self.known[e["id"]] = (self.t, e["pos"][0], e["pos"][1])
+        if self.beams_on:      # a beam or arc starts at its shooter's muzzle: that is a known position even if we can't see it
+            seen_ids = {e["id"] for e in enemies}
+            for b in obs.get("beams", ()):
+                if b.get("by") not in seen_ids and b.get("path"):
+                    self.known[b["by"]] = (self.t - b.get("age", 0.0), b["path"][0][0], b["path"][0][1])
         self.known = {k: v for k, v in self.known.items() if self.t - v[0] < 12}
         hp_frac = me["hp"] / max(1.0, me["max_hp"])
         recently_hurt = self.t - self.last_hurt_t < 2.5
@@ -349,6 +363,14 @@ class Bot:
                 mv, jump, boost2 = self._unstick_v2(mv, move)
             else:
                 mv, jump, boost2 = self._unstick(mv, move is not None)
+            mv, jump, boost2 = self._unstick(mv, move is not None)
+            if self.dodge_on and self.t >= self.escape_until:
+                dv, dwhy = self._dodge(obs)
+                if dv is not None:
+                    w = self.dodge_weight
+                    mv = self._steer(norm(mv[0] + dv[0] * w, mv[1] + dv[1] * w))
+                    why = (why + " " if why else "") + "dodge " + dwhy
+                    mf.draw.line([x, y, z + 2], [x + dv[0] * 12, y + dv[1] * 12, z + 2], "#ffffff")
         if move is not None and self.mode in ("move", "loot", "heal", "drop") and not boost and not boost2:
             pass  # walking at full speed: faster than sneaking, and the squad hunts us anyway
         act["move"] = [round(mv[0], 3), round(mv[1], 3)]
@@ -367,6 +389,78 @@ class Bot:
                      drop=f"{dd.drop_id}|{dd.phase}" if dd.goal is not None else dd.reason, ms=round((time.perf_counter() - t0) * 1000, 2))
         mf.draw.label(f"{self.mode} {why} hp {me['hp']:.0f}")
         return act
+
+    # ================================================================== dodge
+    def _dodge(self, obs):
+        """(unit dodge direction, why) for enemy bullets that will hit us within ~0.6 s and mortar shells landing within
+        splash range; (None, "") when nothing is coming. Gun bullets fly straight, so we step sideways off their line."""
+        me = self.me
+        projs = obs.get("projectiles") or ()
+        if not projs:
+            return None, ""
+        st = self.stats
+        rad = st.get("radius", 2.5) + 1.0                       # cylinder radius plus a margin
+        half_h = st.get("height", 9.0) / 2 + 1.0
+        cx, cy, cz = self.x, self.y, self.z + st.get("height", 9.0) / 2
+        mvx, mvy, mvz = me["vel"]
+        g = self.w["mortar"].get("gravity", 22.0)
+        splash = self.w["mortar"].get("splash_radius", 7.0)
+        dx_sum = dy_sum = 0.0
+        n_b = n_m = 0
+        for p in projs:
+            kind = p.get("kind")
+            px, py, pz = p["pos"]
+            vx, vy, vz = p["vel"]
+            if kind in ("gun", "npc") and self.dodge_bullets:
+                rvx, rvy, rvz = vx - mvx, vy - mvy, vz - mvz
+                s2 = rvx * rvx + rvy * rvy + rvz * rvz
+                if s2 < 1e-6:
+                    continue
+                rx, ry, rz = px - cx, py - cy, pz - cz
+                ts = -(rx * rvx + ry * rvy + rz * rvz) / s2     # time of closest approach
+                if ts < 0.0 or ts > 0.6:
+                    continue
+                hx, hy, hz = rx + rvx * ts, ry + rvy * ts, rz + rvz * ts
+                if math.hypot(hx, hy) > rad or abs(hz) > half_h:
+                    continue                                    # it passes us
+                sp = math.hypot(vx, vy)
+                if sp < 1e-6:
+                    continue
+                perp = (-vy / sp, vx / sp)
+                lat = hx * perp[0] + hy * perp[1]               # which side of its line we are on
+                sgn = (1.0 if lat > 0 else -1.0) if abs(lat) > 0.3 else self.dodge_flip
+                self.dodge_flip = sgn
+                wgt = 1.0 / (0.15 + ts)
+                dx_sum += perp[0] * sgn * wgt
+                dy_sum += perp[1] * sgn * wgt
+                n_b += 1
+            elif kind == "mortar" and self.dodge_mortars:
+                dz = pz - self.z
+                disc = vz * vz + 2 * g * dz
+                if disc < 0:
+                    continue
+                tl = (vz + math.sqrt(disc)) / g                 # time until it reaches our ground level
+                if tl < 0.1 or tl > 2.0:
+                    continue
+                lx, ly = px + vx * tl, py + vy * tl
+                dl = math.hypot(lx - self.x, ly - self.y)
+                if dl > splash + 3.0:
+                    continue
+                if dl < 1.0:
+                    ux, uy = -vy, vx                            # dead centre: leave sideways
+                else:
+                    ux, uy = self.x - lx, self.y - ly
+                ux, uy = norm(ux, uy)
+                wgt = 2.0
+                dx_sum += ux * wgt
+                dy_sum += uy * wgt
+                n_m += 1
+        if not (n_b or n_m):
+            return None, ""
+        d = norm(dx_sum, dy_sum)
+        if d == (0.0, 0.0):
+            return None, ""
+        return d, (f"{n_b}b" if n_b else "") + (f"{n_m}m" if n_m else "")
 
     # ================================================================== memory
     def _remember(self, obs):
