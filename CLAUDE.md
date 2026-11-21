@@ -59,3 +59,4 @@ See `docs/V2_MERGE.md`: what v2 contains, the integration contract (action-field
 - [ ] Squad handling: avoid being the weakest visible target; third-party instead of first contact.
 - [ ] Timing guard: fall back to a cheap action if a decision runs long.
 - [ ] Maybe: a crude local simulator (map collision + zone + simple enemies) so play strength can be tested offline.
+- [x] Perception (H-PER) merged on `v2-per`: tracked world model (hidden-enemy particle filters, unseen-mass cloud, sound/event/beam/shell fusion, incoming-shot and laser telegraphs). Feeds loot threats now; `self.world` is there for nav/engage/aim. Unproven in play.

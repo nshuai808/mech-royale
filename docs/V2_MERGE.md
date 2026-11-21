@@ -73,7 +73,7 @@ Decisions worth knowing:
 | Zone and supply drops (H-ZON, H-DRP) | | | `zone`, `drops` | |
 | Aiming and movement (H-AIM, H-MOV) | | | `aim`, `move` | |
 | Upgrades (H-UPG) | | | `upgrades` | |
-| Perception (H-PER) | | | `perception` | |
+| Perception (H-PER) | `v2-per` | `Bot._perceive` (per-tick update, `self.world`), loot `threats=` hand-off, `per=` trace field | `perception` | merged into `v2-per`; feeds loot threats only, no action fields; untested against opponents |
 
 ## 5. Known conflict: `survival-v1`
 
@@ -103,3 +103,14 @@ Your task: merge YOUR component (the module you designed in this project, with i
 
 Constraints that always apply: 50 ms per decision on 1 CPU, no network, read-only disk (write only /tmp), stdlib only, never crash, freeze Sunday 9:00 AM ET, cutoff Sunday 11:00 AM ET. Score is mean of 16 minus place, so survival matters more than kills.
 ```
+
+## 7. Perception (H-PER) notes for other components
+
+`self.world` (set by `Bot._perceive` each tick, `None` if perception failed) is the shared world model. Read-only for everyone else:
+- `world.contacts[i]`: `id` (None = unseen hot spot), `pos`, `vel`, `sigma` (m), `age` (s since lost), `conf`, `hp`, `weapons`, `charging`, `src` (`seen`/`recent`/`sound`/`unseen`), `threat`, `heard`, `mass`.
+- `world.incoming[i]`: `hit` (will reach our cylinder), `t_hit`, `miss`, `dodge` (unit xy), `hit_pos`, `shooter`, `kind`. Mortars give the impact point, splash `radius` and the launch point.
+- `world.laser_lines`, `world.lightning_risk`, `world.npcs`, `world.n_unseen`, `world.threat_at(x, y, r)`, `world.threat_grid()` (20 m cells).
+- Nav: add `threat_grid()` as an exposure cost. Engage/retreat: use `contacts` (weapons, sigma) and `incoming`/`laser_lines` for dodge. Aiming: aim at hot spots only above about `conf` 0.5.
+- Perception sets no action fields. Its only effect today is `threats=` into `LootPlanner.step`. Dodge/move stays with the arbiter (H-MOV): `world.incoming[0].dodge` is ready to use.
+- Files: `percept.py`, `geom.py` (map raster and LOS; name may collide with a nav module only if that module is also called `geom`), `test_percept.py`, harness `tools/per_sim.py` + `tools/per_eval.py` (ablations: `python3 tools/per_eval.py 6 90 0.1 full,no_sound,dead_reckon late`).
+- Design, verdicts and knob sensitivity: `claude/h-per.md` in the Claude project.

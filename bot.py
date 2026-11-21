@@ -6,6 +6,7 @@ import os
 import botlog
 import loot
 import mechfight as mf
+import percept
 
 
 def load_params():
@@ -27,11 +28,34 @@ class Bot:
         self.reach = cfg["loot"]["pickup_radius"]
         self.planner = loot.LootPlanner(cfg, loot.LootParams.from_dict(self.params.get("loot")))
         self.special_margin = self.params.get("fire", {}).get("special_margin", 0.9)
+        self.per, self.world, self.per_errors = None, None, 0
+        pp = self.params.get("perception") or {}
+        if pp.get("enabled", True):
+            try:
+                self.per = percept.Perception(hello, params=percept.load_params(overrides=pp))
+            except Exception as e:  # no perception = v2 behaviour
+                botlog.trace(0, mode="per_error", err=repr(e))
 
-    def _loot(self, obs):
+    def _perceive(self, obs):
+        """World model update (H-PER). Returns loot threats, or None to let loot use its own fallback."""
+        if self.per is None:
+            return None
+        try:
+            self.world = self.per.update(obs)
+            self.per_errors = 0
+            return self.per.loot_threats(loot.Threat) or None
+        except Exception as e:
+            self.world = None
+            self.per_errors += 1
+            botlog.trace(obs["tick"], mode="per_error", err=repr(e))
+            if self.per_errors >= 20:
+                self.per = None
+            return None
+
+    def _loot(self, obs, threats=None):
         """Loot decision; any failure falls back to v1 behaviour (no loot) instead of crashing."""
         try:
-            return self.planner.step(obs)
+            return self.planner.step(obs, threats=threats)
         except Exception as e:
             botlog.trace(obs["tick"], mode="loot_error", err=repr(e))
             return loot.Decision(reason="error")
@@ -58,7 +82,7 @@ class Bot:
         if obs["offer"]:
             act["pick"] = 0
 
-        d = self._loot(obs)
+        d = self._loot(obs, self._perceive(obs))
         if d.take is not None:
             act["take"] = d.take
             if d.drop is not None:
@@ -85,7 +109,9 @@ class Bot:
         mode = "fight" if enemies else ("loot" if d.goal is not None else "to_zone")
         botlog.trace(obs["tick"], mode=mode, target=enemies[0]["id"] if enemies else None, in_zone=me["in_zone"],
                      loot=d.reason, loot_kind=d.kind, loot_u=round(d.utility, 2),
-                     weapons=[w["kind"] if w else None for w in me["weapons"]])
+                     weapons=[w["kind"] if w else None for w in me["weapons"]],
+                     per=None if self.world is None else [len(self.per.tracks), round(self.per.cloud.mass, 1),
+                                                          len(self.world.hot), round(self.per.times[-1], 1)])
         return act
 
 

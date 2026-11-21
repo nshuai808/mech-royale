@@ -11,5 +11,23 @@
   "fire": {
     "special_margin": 0.9,
     "_note": "fire the slot-1 special only inside this fraction of its range"
+  },
+  "perception": {
+    "enabled": true,
+    "time_budget_ms": 8.0,
+    "use_sound": true,
+    "use_events": true,
+    "use_beams": true,
+    "use_proj": true,
+    "use_carve": false,
+    "hunt_auto": true,
+    "walk_sigma": 3.5,
+    "vel_tau_s": 2.5,
+    "n_hidden": 32,
+    "n_cloud": 480,
+    "bearing_sigma_scale": 1.0,
+    "bin_slack_m": 6.0,
+    "sound_bg": 0.05,
+    "_note": "H-PER; all knobs and defaults are in percept.DEFAULTS. use_carve is off (neutral in the harness). hunt_auto learns drift toward us from re-acquisition errors (practice squads hunt us) and leaks to 0."
   }
 }
