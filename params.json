@@ -54,5 +54,12 @@
     "enabled": true,
     "lead_frac": 0.8,
     "max_lead_m": 40
+  },
+  "early_evade": {
+    "_note": "Step 2: (any aggro setting) break off to cover when >= `attackers` different mechs hit us within `window_s` and HP < `hp_frac`. enabled=false restores main.",
+    "enabled": true,
+    "attackers": 2,
+    "hp_frac": 0.8,
+    "window_s": 2.0
   }
 }
