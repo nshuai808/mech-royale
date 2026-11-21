@@ -93,3 +93,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sat | `5d80994` | 3.40 | + farther early loot, lightning closes in, weapon-aware TTK and upgrades. Neutral. |
 | Sat | `21267c5` | 3.27 | + laser fights to 250 m, removed '2 close and HP < 85% -> evade'. Neutral/slightly worse. |
 | Sat | `ea37402` | **3.56** | + power farming: NPCs to 150 m, cubes 120 m, crates 150 m, roam when idle in the first 3 min. New best. |
+| Sat | `8ecaa3c` | 3.35 | + rooftop camping from 100 s (roof.py). Worse than 3.56: house bots climb, or the climb fails. |
