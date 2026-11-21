@@ -1,0 +1,15 @@
+{
+  "_note": "Every tunable knob. Sections are read by bot.py; unknown keys are ignored. Edit here, not in code.",
+  "loot": {
+    "enabled": true,
+    "base": {"lightning": 1.0, "laser": 0.9, "mortar": 0.0},
+    "_mortar_note": "mortar base 0 until H-AIM has a ballistic solver: v2 aims flat, so a mortar is only a cook-off liability",
+    "detour_early_m": 150,
+    "detour_mid_m": 60,
+    "detour_late_m": 25
+  },
+  "fire": {
+    "special_margin": 0.9,
+    "_note": "fire the slot-1 special only inside this fraction of its range"
+  }
+}

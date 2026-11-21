@@ -51,7 +51,8 @@ layout and limits, and `kit/protocol.md` for the full rules. This file is the sh
 - [x] Logging harness: `tools/record.py`, `tools/replay.py`, `tools/analyze.py`, `botlog.py`.
 - [ ] Submit the unmodified starter once to confirm the pipeline (expect ~1.15).
 - [ ] Survival core: zone-aware movement with margin, cover / line-of-sight breaking, retreat + regen when hurt.
-- [ ] Weapons and loot: pick up by triangle, charge-laser handling, mortar lobs, offers and upgrades.
+- [x] Loot + weapon pick v1 (branch `v2-loot`): `loot.py`, knobs in `params.json`, straight-line walk to loot goal (no nav yet). Mortar base value is 0 until a ballistic aim solver exists.
+- [ ] Charge-laser handling, mortar lobs, offers and upgrades.
 - [ ] Squad handling: avoid being the weakest visible target; third-party instead of first contact.
 - [ ] Timing guard: fall back to a cheap action if a decision runs long.
 - [ ] Maybe: a crude local simulator (map collision + zone + simple enemies) so play strength can be tested offline.
