@@ -16,6 +16,9 @@ Submissions close **Sun 11:00 AM ET**. Max 4 submissions per hour per team.
 | `kit/check/check.py` | Conformance check: the scorer runs this before every match. |
 | `kit/arena/` | The map (`world.json`, `terrain.i16`); mounted at `/arena` in matches. |
 | `kit/mechfight.schema.json` | JSON Schema for every message. |
+| `botlog.py` | `trace()` for per-decision logging; off unless `MECH_TRACE=1`, so free in matches. |
+| `tools/` | Local logging harness: `record.py`, `replay.py`, `analyze.py` (see below). Not in the image. |
+| `CLAUDE.md` | Context and status for Claude Code sessions. |
 
 `kit/` is excluded from the Docker image by `.dockerignore`.
 
@@ -42,6 +45,25 @@ Full check exactly as the scorer runs it (needs Docker):
 docker build -t mech-royale .
 python kit/check/check.py --map-dir /arena -- docker run --rm -i --network none --cpus 1 --memory 512m --read-only --tmpfs /tmp:rw,size=64m --user 65534:65534 -v "$PWD/kit/arena:/arena:ro" mech-royale
 ```
+
+## Logging harness
+
+Matches show us only the score (no stderr), so we look at the bot locally. All stdlib Python; files land in `replays/` (gitignored).
+
+```sh
+# feed the kit's 300 recorded observations to the bot and log every decision + answer time
+python3 tools/replay.py -- python3 -u bot.py
+# same inside the match sandbox (the real 50 ms test); needs the image built
+python3 tools/replay.py --repeat 3 --map-dir /arena -- docker run --rm -i --network none --cpus 1 --memory 512m --read-only --tmpfs /tmp:rw,size=64m --user 65534:65534 -e MECH_TRACE=1 -v "$PWD/kit/arena:/arena:ro" mech-royale
+# record any run, e.g. the conformance check
+python3 kit/check/check.py -- python3 tools/record.py -- python3 -u bot.py
+# read a log, or compare two bot versions on the same stream
+python3 tools/analyze.py replays/<file>.jsonl.gz --csv out.csv
+python3 tools/analyze.py --diff replays/A.jsonl.gz replays/B.jsonl.gz
+```
+
+In `bot.py`, call `botlog.trace(obs["tick"], mode="...", ...)` once per decision so reports show what the bot was trying to do.
+Replayed observations don't react to the bot: they test timing, crashes and decisions, not how well it plays.
 
 ## Team workflow
 

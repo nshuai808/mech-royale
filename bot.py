@@ -1,5 +1,6 @@
 """Example bot: walk to the zone, grab a weapon, shoot the nearest mech, draw what it's thinking."""
 import math
+import botlog
 import mechfight as mf
 
 
@@ -29,6 +30,9 @@ class Bot:
             mf.draw.line([x, y, z + 7], [t[0], t[1], t[2] + 4.5], "#ff5040")
         mf.draw.point([goal[0], goal[1], z], "#40c0ff", 6)
         mf.draw.label(f"hp {me['hp']:.0f} · {len(enemies)} in sight")
+        # One line per decision for the local tools (off in real matches): why we did what we did.
+        botlog.trace(obs["tick"], mode="fight" if enemies else "to_zone",
+                     target=enemies[0]["id"] if enemies else None, in_zone=me["in_zone"])
         return act
 
 
