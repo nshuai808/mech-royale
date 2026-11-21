@@ -98,5 +98,24 @@
   "lt_energy": {
     "_note": "holding lightning: no boost in evade/hide with an enemy < 50 m, fight boost only at energy >= 70 (energy = lightning ammo); off = integ-3",
     "enabled": true
+  },
+  "rush_build": {
+    "_note": "upgrade order for the 5-min rush: plating, armor, lightning_chain, lightning_efficiency, laser_pierce, nanites...",
+    "enabled": true
+  },
+  "cube_cap": {
+    "_note": "skip loose cubes at the cap (stats stop at 10, size keeps growing)",
+    "enabled": true,
+    "cap": 10
+  },
+  "farm_plus": {
+    "_note": "farm NPC drones (2 cubes each) out to reach_m until until_s (was 150 m / 240 s)",
+    "enabled": true,
+    "reach_m": 220,
+    "until_s": 270
+  },
+  "lt_chain": {
+    "_note": "lightning aims at the enemy with the most neighbours within chain_range",
+    "enabled": true
   }
 }

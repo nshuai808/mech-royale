@@ -37,6 +37,10 @@ UPGRADE_PREF = ["plating", "armor", "nanites", "laser_damage", "laser_charge", "
                 "gun_damage", "gun_rate", "servos", "sensors", "gyros", "jets", "capacitor", "reactor",
                 "gun_mag", "gun_velocity", "lightning_range", "mortar_reload", "lightning_chain",
                 "mortar_velocity", "mortar_splash", "laser_pierce"]
+# rush_build: survive the 5-min rush (HP, armor) and hit the converging pack (chain, pierce), then the rest
+RUSH_PREF = ["plating", "armor", "lightning_chain", "lightning_efficiency", "laser_pierce", "nanites", "laser_damage",
+             "laser_charge", "capacitor", "lightning_range", "gun_damage", "gun_rate", "reactor", "gyros", "jets",
+             "gun_mag", "sensors", "mortar_reload", "mortar_splash", "gun_velocity", "mortar_velocity", "servos"]
 WEAPON_RANK = {"lightning": 3, "laser": 2, "mortar": 1, "gun": 0}   # lightning: 240 dps, can't miss inside 45 m
 SPECIAL = ("laser", "lightning")
 BEATS = {"laser": "mortar", "mortar": "lightning", "lightning": "laser"}   # protocol weapon triangle
@@ -99,6 +103,14 @@ class Bot:
         # lt_energy: energy is the lightning's ammo (3 per 60-dmg shot = 20 dmg/energy); boosting burns 17/s (~340 dmg/s
         # of lightning). Holding lightning near an enemy, don't boost in evade/hide; close in with a boost only if energy >= 70
         self.lt_energy = bool((load_params().get("lt_energy") or {}).get("enabled", False))
+        # power build-up for the 5-minute rush (coach/RUSH_PLAN.md): each part has its own flag
+        P = load_params()
+        self.rush_build = bool((P.get("rush_build") or {}).get("enabled", False))   # tanky + area-damage upgrade order
+        self.cube_cap = int((P.get("cube_cap") or {}).get("cap", 0)) if (P.get("cube_cap") or {}).get("enabled") else 0
+        fp = P.get("farm_plus") or {}
+        self.farm_r, self.farm_t = (float(fp.get("reach_m", 220)), float(fp.get("until_s", 270))) if fp.get("enabled") else (150.0, 240.0)
+        self.lt_chain = bool((P.get("lt_chain") or {}).get("enabled", False))
+        self._enemies = []
         self.hist = []                   # (t, x, y)
         self.escape_until, self.escape_dir = -1.0, (0.0, 0.0)
         self.strafe_sign, self.strafe_until = 1, 0.0
@@ -232,6 +244,7 @@ class Bot:
         hp_frac = me["hp"] / max(1.0, me["max_hp"])
         recently_hurt = self.t - self.last_hurt_t < 2.5
 
+        self._enemies = enemies
         target = self._choose_target(enemies, npcs)
         # everyone we know about nearby, including ones that just ducked out of view
         threats = [(kx, ky) for (_, kx, ky) in self.known.values() if math.hypot(kx - x, ky - y) < 220]
@@ -581,7 +594,7 @@ class Bot:
                 hit = self.attackers.get(n["id"])
                 attacking = hit and now - hit[0] < 4
                 hp_ok = self.me["hp"] > 0.5 * self.me["max_hp"]
-                if attacking or (hp_ok and self.t < 240 and n["_d"] < 150):   # 350 HP, 2 cubes each: farm them
+                if attacking or (hp_ok and self.t < getattr(self, "farm_t", 240.0) and n["_d"] < getattr(self, "farm_r", 150.0)):   # 350 HP, 2 cubes each: farm them
                     if best is None or n["_d"] < best["_d"]:
                         best = n
         self.target_id = best["id"] if best else None
@@ -797,7 +810,7 @@ class Bot:
                     best, best_s = (p["pos"][0], p["pos"][1], f"get {p['kind']}"), s
         if best:
             return best
-        for c in obs.get("cubes", []):
+        for c in ([] if getattr(self, "cube_cap", 0) and me.get("cubes", 0) >= self.cube_cap else obs.get("cubes", [])):
             d = math.dist(c["pos"][:2], (x, y))
             if d < 120 and abs(c["pos"][2] - self.z) < 3.5 and self.in_safe(c["pos"][0], c["pos"][1]):
                 return (c["pos"][0], c["pos"][1], "get cube")
@@ -935,6 +948,10 @@ class Bot:
                 pass
         kinds = [w["kind"] for w in self.me["weapons"] if w]
         mine = [u for u in ids if any(u.startswith(k + "_") for k in kinds)]
+        if getattr(self, "rush_build", False):
+            for u in RUSH_PREF:
+                if u in ids:
+                    return ids.index(u)
         pref = UPGRADE_PREF[:3] + sorted(mine, key=lambda u: UPGRADE_PREF.index(u) if u in UPGRADE_PREF else 99) + UPGRADE_PREF[3:]
         for u in pref:
             if u in ids:
@@ -1127,6 +1144,9 @@ class Bot:
 
         if lt and d <= lt["stats"].get("range", 45) * 0.92 and me["energy"] >= 6:
             primary = direct
+            if getattr(self, "lt_chain", False) and tgt["kind"] == "mech" and len(self._enemies) >= 2:
+                primary = self._chain_aim(lt["stats"], direct)
+                direct = primary
             cone = math.radians(lt["stats"].get("cone_deg", 30)) / 2
             if abs(wrap(direct[0] - ay)) < cone * 0.8 and lt["cooldown"] <= 0:
                 fire[idx["lightning"]] = True
@@ -1161,6 +1181,23 @@ class Bot:
             if d <= gun["stats"].get("range", 230) and err(*lead) < tol and gun.get("ammo", 1) > 0 and not gun.get("reload"):
                 fire[idx["gun"]] = True
         return primary, fire
+
+    def _chain_aim(self, st, direct):
+        """lt_chain: among enemy mechs in arc range with line of sight, aim at the one with the most other enemies
+        within chain_range (the arc hits the nearest target in the cone, then jumps), nearest on ties."""
+        rng, cr = st.get("range", 45) * 0.92, st.get("chain_range", 14)
+        es = [e for e in self._enemies if e["_d"] <= rng and (self.map is None or self.map.los(self.x, self.y, e["pos"][0], e["pos"][1]))]
+        if len(es) < 2:
+            return direct
+        def score(e):
+            n = sum(1 for o in self._enemies if o is not e and math.dist(o["pos"][:2], e["pos"][:2]) <= cr)
+            return (n, -e["_d"])
+        best = max(es, key=score)
+        if score(best)[0] == 0:
+            return direct
+        bx, by, bz = best["pos"]
+        mz = self.z + self.stats.get("muzzle_height", 7.0)
+        return (math.atan2(by - self.y, bx - self.x), math.atan2(bz + 4.5 - mz, max(best["_d"], 0.1)))
 
     def _mortar_lead(self, tx, ty, tvx, tvy, d, dz, st):
         """Aim point (x, y, horizontal distance) for a shell: the target's position after the flight time of the
