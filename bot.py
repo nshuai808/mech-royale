@@ -38,6 +38,16 @@ UPGRADE_PREF = ["plating", "armor", "nanites", "laser_damage", "laser_charge", "
                 "mortar_velocity", "mortar_splash", "laser_pierce"]
 WEAPON_RANK = {"lightning": 3, "laser": 2, "mortar": 1, "gun": 0}   # lightning: 240 dps, can't miss inside 45 m
 SPECIAL = ("laser", "lightning")
+# context-aware upgrade pick (params.json "upgrade_ctx"): base score per upgrade, then bumps for the weapon
+# we hold and the weapons we have seen on enemy mechs (counter triangle: laser > mortar > lightning > laser)
+UPG_BASE = {"plating": 10.0, "armor": 9.5, "nanites": 8.6,
+            "servos": 4.0, "sensors": 3.5, "gyros": 3.5, "jets": 3.0, "capacitor": 3.0, "reactor": 3.0}
+UPG_WEAPON = {   # score when this weapon is our primary (best held); a secondary held weapon gets 3 less
+    "lightning": {"lightning_efficiency": 8.5, "lightning_range": 7.5, "lightning_chain": 4.0},
+    "laser": {"laser_damage": 8.5, "laser_charge": 7.5, "laser_pierce": 3.0},
+    "mortar": {"mortar_reload": 7.5, "mortar_velocity": 5.0, "mortar_splash": 4.5},
+    "gun": {"gun_damage": 7.5, "gun_rate": 7.0, "gun_mag": 5.0, "gun_velocity": 4.5},
+}
 BUDGET_S = 0.028  # our own soft deadline per decision; the server's is 50 ms
 
 
@@ -97,6 +107,8 @@ class Bot:
         self.roam, self.roam_t = None, -1.0
         # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
         self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
+        self.upg_ctx = bool((load_params().get("upgrade_ctx") or {}).get("enabled", False))
+        self.foe_kit = {}                # enemy id -> tuple of weapon kinds last seen on it
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -142,6 +154,8 @@ class Bot:
             self.dd = self.dp.step(obs, zone_plan=self.zp)   # never raises
 
         act = {"tick": obs["tick"]}
+        if self.upg_ctx:
+            self._note_foes(obs)
         if obs.get("offer"):
             act["pick"] = self._pick_upgrade(obs["offer"])
 
@@ -599,8 +613,58 @@ class Bot:
                 return {"take": p["id"], "drop": 0}
         return None
 
+    def _note_foes(self, obs):
+        for m in obs.get("mechs", []):
+            if m.get("kind") == "mech" and isinstance(m.get("weapons"), list):
+                self.foe_kit[m.get("id")] = tuple(w for w in m["weapons"] if isinstance(w, str))
+
+    def _foe_share(self):
+        """Share of the enemy mechs we have seen that carry each special (0..1), from their last-seen loadout."""
+        n = len(self.foe_kit)
+        if not n:
+            return {}
+        return {k: sum(k in kit for kit in self.foe_kit.values()) / n for k in ("laser", "mortar", "lightning")}
+
+    def _upgrade_scores(self, ids):
+        held = [w["kind"] for w in self.me["weapons"] if w and w.get("kind") in WEAPON_RANK]
+        primary = max(held, key=lambda k: WEAPON_RANK[k], default="gun")
+        foe = self._foe_share()
+        lz, mo, li = foe.get("laser", 0.0), foe.get("mortar", 0.0), foe.get("lightning", 0.0)
+        sc = {}
+        for u in ids:
+            v = UPG_BASE.get(u)
+            for k in held:
+                w = UPG_WEAPON.get(k, {}).get(u)
+                if w is not None:
+                    v = max(v if v is not None else -1e9, w if k == primary else w - 3.0)
+            if v is None:
+                v = 0.0
+            # what we hold vs what they hold
+            if u == "lightning_range":
+                v += 1.5 * (lz + mo)            # they outrange the arc: reach them sooner
+            elif u == "laser_charge":
+                v += 1.5 * li                   # beat the short / fire before the arc closes in
+            elif u in ("capacitor", "reactor"):
+                v += (2.5 if primary == "lightning" else 0.0) + 1.5 * mo   # arcs cost energy, shells drain it
+            elif u == "jets":
+                v += 1.0 * mo                   # recover from the knock-back
+            elif u == "servos":
+                v += (2.0 * li if primary != "lightning" else 0.0)   # kite out of the 45 m arc
+            elif u == "gyros" and primary == "lightning":
+                v += 1.0                        # keep a close strafer in the 30 deg cone
+            elif u == "armor":
+                v += 0.5 * lz                   # 315-damage bursts: flat reduction
+            sc[u] = v
+        return sc
+
     def _pick_upgrade(self, offer):
         ids = [c["id"] for c in offer["choices"]]
+        if self.upg_ctx:
+            try:
+                sc = self._upgrade_scores(ids)
+                return max(range(len(ids)), key=lambda i: (sc[ids[i]], -i))
+            except Exception:
+                pass
         kinds = [w["kind"] for w in self.me["weapons"] if w]
         mine = [u for u in ids if any(u.startswith(k + "_") for k in kinds)]
         pref = UPGRADE_PREF[:3] + sorted(mine, key=lambda u: UPGRADE_PREF.index(u) if u in UPGRADE_PREF else 99) + UPGRADE_PREF[3:]

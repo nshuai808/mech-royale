@@ -14,5 +14,9 @@
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
     "enabled": true
+  },
+  "upgrade_ctx": {
+    "_note": "pick upgrades by the weapon we hold and the weapons seen on enemies (Bot._upgrade_scores); off = fixed UPGRADE_PREF",
+    "enabled": true
   }
 }
