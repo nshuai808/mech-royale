@@ -92,7 +92,8 @@ class Bot:
         self.target_id = None
         self.known = {}                  # enemy id -> (t_seen, x, y)
         self.zone_commit = False         # once a zone run starts, finish it (no flip-flopping)
-        self.stuck_at, self.side_sign, self.escape_climb = [], 1, True   # recent stuck spots (t, x, y); sidestep side
+        self.stuck_at, self.side_sign, self.escape_climb = [], 1, True
+        self.roam, self.roam_t = None, -1.0   # recent stuck spots (t, x, y); sidestep side
         # zone tracker (H-ZON) and supply-drop planner (H-DRP): any failure = that component has no opinion
         params = load_params()
         self.zt = self.dp = None
@@ -211,6 +212,17 @@ class Bot:
             elif need_zone:
                 self.mode, why = "move", "into next circle"
                 move = self._go_circle(self.gx, self.gy, self.gr)
+            elif self.t < 180 and hp_frac > 0.8:
+                # nothing to do early: roam the safe zone to find crates, NPCs and weapons (cubes = HP + damage)
+                if self.roam is None or self.t > self.roam_t or math.hypot(self.roam[0] - x, self.roam[1] - y) < 8:
+                    a = self.rng.uniform(0, TAU)
+                    r = self.rng.uniform(40, 110)
+                    px, py = x + r * math.cos(a), y + r * math.sin(a)
+                    if not self.in_safe(px, py, ahead=30):
+                        px, py = self.gx + (px - self.gx) * 0.3, self.gy + (py - self.gy) * 0.3
+                    self.roam, self.roam_t = (px, py), self.t + 20
+                self.mode, why = "roam", ""
+                move = self._go_point(self.roam[0], self.roam[1], 6.0)
             else:
                 self.mode, why = "hold", ""
                 move = None
@@ -329,8 +341,8 @@ class Bot:
             for n in npcs:
                 hit = self.attackers.get(n["id"])
                 attacking = hit and now - hit[0] < 4
-                hp_ok = self.me["hp"] > 0.6 * self.me["max_hp"]
-                if attacking or (hp_ok and self.t < 200 and n["_d"] < 60):
+                hp_ok = self.me["hp"] > 0.5 * self.me["max_hp"]
+                if attacking or (hp_ok and self.t < 240 and n["_d"] < 150):   # 350 HP, 2 cubes each: farm them
                     if best is None or n["_d"] < best["_d"]:
                         best = n
         self.target_id = best["id"] if best else None
@@ -463,9 +475,9 @@ class Bot:
             return best
         for c in obs.get("cubes", []):
             d = math.dist(c["pos"][:2], (x, y))
-            if d < 80 and abs(c["pos"][2] - self.z) < 3.5 and self.in_safe(c["pos"][0], c["pos"][1]):
+            if d < 120 and abs(c["pos"][2] - self.z) < 3.5 and self.in_safe(c["pos"][0], c["pos"][1]):
                 return (c["pos"][0], c["pos"][1], "get cube")
-        cr = self._crate(obs, 200 if self.t < 120 and not (have & set(SPECIAL)) else 120)
+        cr = self._crate(obs, 200 if self.t < 120 and not (have & set(SPECIAL)) else 150)
         if cr is not None:
             d = math.dist(cr["pos"][:2], (x, y))
             if d > 35:
@@ -617,7 +629,7 @@ class Bot:
         aim = None
         if target is not None:
             aim, fire = self._engage(target, slots)
-        if aim is None and target is None and self.mode in ("loot", "hold", "move"):
+        if aim is None and target is None and self.mode in ("loot", "hold", "move", "roam"):
             cr = self._crate(obs, 60)
             if cr is not None and (self.map is None or self.map.los(self.x, self.y, cr["pos"][0], cr["pos"][1])):
                 fake = {"kind": "crate", "pos": cr["pos"], "vel": (0, 0, 0)}
