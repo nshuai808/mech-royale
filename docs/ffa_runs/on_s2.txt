@@ -1,0 +1,25 @@
+match  1 seed 2000: place  1 (15 pts)  died survived         at 212.0s  kills 4  drops 2
+match  2 seed 2001: place  2 (14 pts)  died zone             at 268.8s  kills 3  drops 0
+match  3 seed 2002: place  1 (15 pts)  died survived         at 218.3s  kills 7  drops 1
+match  4 seed 2003: place  1 (15 pts)  died survived         at 154.5s  kills 4  drops 0
+match  5 seed 2004: place  1 (15 pts)  died survived         at 199.5s  kills 3  drops 1
+match  6 seed 2005: place  7 ( 9 pts)  died #13 (expert)     at  70.2s  kills 2  drops 0
+match  7 seed 2006: place  6 (10 pts)  died #14 (expert)     at  55.6s  kills 3  drops 0
+match  8 seed 2007: place 10 ( 6 pts)  died #15 (expert)     at  28.8s  kills 1  drops 0
+match  9 seed 2008: place  9 ( 7 pts)  died #3 (easy)        at  34.8s  kills 1  drops 0
+match 10 seed 2009: place 11 ( 5 pts)  died #5 (medium)      at  26.6s  kills 1  drops 0
+match 11 seed 2010: place 16 ( 0 pts)  died #6 (medium)      at  11.5s  kills 0  drops 0
+match 12 seed 2011: place 15 ( 1 pts)  died #8 (hard)        at  18.5s  kills 0  drops 0
+match 13 seed 2012: place  1 (15 pts)  died survived         at 261.5s  kills 1  drops 2
+match 14 seed 2013: place  6 (10 pts)  died #11 (hard)       at  60.2s  kills 3  drops 0
+match 15 seed 2014: place 12 ( 4 pts)  died #12 (expert)     at  23.1s  kills 1  drops 0
+match 16 seed 2015: place  8 ( 8 pts)  died #7 (medium)      at  28.9s  kills 3  drops 0
+match 17 seed 2016: place  1 (15 pts)  died survived         at 212.7s  kills 5  drops 2
+match 18 seed 2017: place  3 (13 pts)  died zone             at 210.1s  kills 2  drops 0
+match 19 seed 2018: place  2 (14 pts)  died zone             at 209.5s  kills 2  drops 0
+match 20 seed 2019: place  1 (15 pts)  died survived         at 234.6s  kills 3  drops 2
+match 21 seed 2020: place  1 (15 pts)  died survived         at 375.9s  kills 3  drops 2
+match 22 seed 2021: place 10 ( 6 pts)  died #11 (hard)       at  30.5s  kills 1  drops 0
+match 23 seed 2022: place 10 ( 6 pts)  died #3 (easy)        at  48.6s  kills 0  drops 0
+match 24 seed 2023: place  1 (15 pts)  died survived         at 174.4s  kills 4  drops 0
+SCORE 10.33  (+-1.01 s.e., 24 matches, 420 s)
