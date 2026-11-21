@@ -138,6 +138,15 @@ class Bot:
         ee = load_params().get("early_evade") or {}
         self.early_evade = {"enabled": bool(ee.get("enabled", True)), "attackers": int(ee.get("attackers", 2)),
                             "hp_frac": float(ee.get("hp_frac", 0.8)), "window_s": float(ee.get("window_s", 2.0))}
+        uh = load_params().get("unseen_hit") or {}
+        self.unseen_p = {"enabled": bool(uh.get("enabled", False)), "cover": bool(uh.get("cover", True)),
+                         "face": bool(uh.get("face", True)), "window_s": float(uh.get("window_s", 1.5)),
+                         "finish_s": float(uh.get("finish_s", 1.5)), "hp_frac": float(uh.get("hp_frac", 1.01))}
+        ef = load_params().get("evade_fix") or {}
+        self.evade_fix = {"enabled": bool(ef.get("enabled", False)), "commit_s": float(ef.get("commit_s", 2.5)),
+                          "radii": tuple(ef.get("radii", (8, 16, 26, 40, 55, 70)))}
+        self.evade_until = -1.0          # evade_fix: once evade starts, keep at it until then (no fight/evade dithering)
+        self.unseen = []                 # [(t, bearing)] of hits in the last window_s by mechs we can't see, newest first
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -223,6 +232,15 @@ class Bot:
         target = self._choose_target(enemies, npcs)
         # everyone we know about nearby, including ones that just ducked out of view
         threats = [(kx, ky) for (_, kx, ky) in self.known.values() if math.hypot(kx - x, ky - y) < 220]
+        up = self.unseen_p
+        self.unseen = []
+        if up["enabled"]:
+            seen_ids = {e["id"] for e in enemies}
+            self.unseen = sorted(((at, b) for i, (at, b) in self.attackers.items()
+                                  if i < 100 and i not in seen_ids and b is not None and self.t - at < up["window_s"]),
+                                 reverse=True)
+            # cover must also block whoever is shooting us from out of sight (sim: most spawn deaths are rear hits from them)
+            threats += [(x + 80 * math.cos(b), y + 80 * math.sin(b)) for _, b in self.unseen[:2]]
         if recently_hurt and self.hurt_bearing is not None and not any(
                 self.attackers.get(e["id"], (-99,))[0] > self.t - 2.5 for e in enemies):
             threats.append((x + 80 * math.cos(self.hurt_bearing), y + 80 * math.sin(self.hurt_bearing)))
@@ -266,7 +284,11 @@ class Bot:
         elif threats and ((not self.aggro and (self._third_party(target, enemies, exposed)
                                                 or self._should_evade(close, hp_frac, recently_hurt, target)))
                           or (self.aggro and hp_frac < 0.25 and len(exposed) >= 2)
-                          or self._multi_hit(hp_frac)):
+                          or self._multi_hit(hp_frac)
+                          or self._unseen_cover(target, hp_frac)
+                          or (self.t < self.evade_until and not self._finishing(target))):
+            if self.mode != "evade" and self.evade_fix["enabled"]:
+                self.evade_until = self.t + self.evade_fix["commit_s"]
             self.mode = "evade"
             move, why = self._evade(threats)
             boost = me["energy"] > 25 and (hp_frac < 0.6 or len(exposed) >= 2)
@@ -649,6 +671,17 @@ class Bot:
         recent = {i for i, (at, _) in self.attackers.items() if i < 100 and self.t - at < ep["window_s"]}
         return len(recent) >= ep["attackers"]
 
+    def _finishing(self, target):
+        ttk = self._ttk(target)
+        return ttk is not None and ttk < self.unseen_p["finish_s"]
+
+    def _unseen_cover(self, target, hp_frac):
+        """unseen_hit: a mech we can't see hit us within window_s: get out of its line (and the target's) unless
+        the target dies first. Sim: in 6 of 8 deaths before 25 s most damage came from such a shooter, in our back."""
+        up = self.unseen_p
+        return bool(up["enabled"] and up["cover"] and self.unseen and hp_frac < up["hp_frac"]
+                    and not self._finishing(target))
+
     def _should_evade(self, close, hp_frac, recently_hurt, target):
         if len(close) >= 3:
             return True
@@ -666,7 +699,7 @@ class Bot:
         m = self.map
         if m is not None and (self.cover is None or self.t - self.cover_t > 0.6):
             ok = lambda px, py: self.in_safe(px, py)
-            self.cover = m.find_cover(self.x, self.y, threats[:4], ok, radii=(8, 16, 26, 40), dirs=16,
+            self.cover = m.find_cover(self.x, self.y, threats[:4], ok, radii=self.evade_fix["radii"] if self.evade_fix["enabled"] else (8, 16, 26, 40), dirs=16,
                                       deadline=self.deadline - 0.006)
             self.cover_t = self.t
         if self.cover:
@@ -1023,6 +1056,11 @@ class Bot:
             if cr is not None and (self.map is None or self.map.los(self.x, self.y, cr["pos"][0], cr["pos"][1])):
                 fake = {"kind": "crate", "pos": cr["pos"], "vel": (0, 0, 0)}
                 aim, fire = self._engage(fake, slots)
+        up = self.unseen_p
+        if (up["face"] and self.unseen and self.mode in ("fight", "evade", "hide", "hunt")
+                and not (self.mode == "fight" and self._finishing(target))):
+            # unseen_hit: turn to whoever shoots us from out of sight: they enter the 200 m wedge, rear hits become front
+            aim, fire = (self.unseen[0][1], 0.0), [False, False]
         if aim is None and self.mode in ("evade", "hide"):
             aim = self._threat_aim()     # rear hits do x1.5: keep our front to whoever we are running from
         if aim is None:
