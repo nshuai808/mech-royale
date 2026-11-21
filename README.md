@@ -94,3 +94,5 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sat | `21267c5` | 3.27 | + laser fights to 250 m, removed '2 close and HP < 85% -> evade'. Neutral/slightly worse. |
 | Sat | `ea37402` | **3.56** | + power farming: NPCs to 150 m, cubes 120 m, crates 150 m, roam when idle in the first 3 min. New best. |
 | Sat | `8ecaa3c` | 3.35 | + rooftop camping from 100 s (roof.py). Worse than 3.56: house bots climb, or the climb fails. |
+| Sat | `ac6e281` | **3.6** | + all-out aggression switch (`params.json` `aggro`, on), roof camping off. New best, but only +0.04 over `ea37402`: inside the noise. Also the control for the 1.71 below: this commit without the v2 modules. |
+| Sat | `f2aea8b` | 1.71 | `ac6e281` + upgrades, perception, loot, engage and aim modules wired into `bot.py` (branch `integrate-v2-modules`). Big regression vs `ac6e281`, so the modules (not aggression) caused it. Which one is unknown; flags in `params.json` allow bisecting. Don't build on it.|
