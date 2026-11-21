@@ -75,7 +75,7 @@ class Mech:
 
 
 class Sim:
-    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False, drop_rivals=0.5):
+    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False, drop_rivals=0.5, ffa=False):
         self.cfg, self.map, self.rng = cfg, mp, random.Random(seed)
         random.seed(seed)
         self.bot_cmd, self.out, self.verbose = bot_cmd, out, verbose
@@ -85,7 +85,7 @@ class Sim:
         self.t, self.tick = 0.0, 0
         self.bullets = []
         self.sounds = []        # (t, x, y, kind, by)
-        self.drops, self.drop_rivals = [], drop_rivals
+        self.drops, self.drop_rivals, self.ffa = [], drop_rivals, ffa
         self.drop_cfg = cfg.get("drops") or {}
         self.drop_times = list(self.drop_cfg.get("times") or [])
         self._zone_init()
@@ -400,6 +400,8 @@ class Sim:
         return {m.id for m in order if m.alive}.intersection({m.id for m in order[: n + dead]})
 
     def _house(self, m, hunters, squad_sees_me):
+        if self.ffa:
+            return self._house_ffa(m)
         me = self.me
         mx, my = m.x, m.y
         sees = me.alive and self.sees(m, me)
@@ -437,6 +439,48 @@ class Sim:
             nz = getattr(m, "aim_noise", (0.0, 0.0))
             m.cmd_yaw = math.atan2(ly - my, lx - mx) + nz[0]
             m.cmd_pitch = math.atan2(me.z + 4.5 - mz, max(d, 1)) + nz[1]
+            if d < g["range"] and abs(wrap(m.cmd_yaw - m.yaw)) < 0.1:
+                m.fire = True
+        elif want:
+            m.cmd_yaw = math.atan2(want[1], want[0])
+
+    def _house_ffa(self, m):
+        """Free-for-all house bot (head-to-head stand-in): fights the nearest mech it can see (us or another house
+        bot), otherwise drifts into the next circle and roams it. Everyone is an enemy."""
+        vis = [o for o in self.mechs if o is not m and o.alive and self.sees(m, o)]
+        tgt = min(vis, key=lambda o: math.hypot(o.x - m.x, o.y - m.y)) if vis else None
+        cd = math.hypot(m.x - self.nc[0], m.y - self.nc[1])
+        margin = max(5.0, self.nr * 0.3)
+        want = None
+        if not self.in_zone(m) or cd > self.nr - margin and self.t > self.ss - 20:
+            want = self._house_path(m, self.nc[0], self.nc[1], max(3.0, self.nr - margin))
+        elif tgt is not None:
+            d = math.hypot(tgt.x - m.x, tgt.y - m.y)
+            if self.t > m.strafe_t:
+                m.strafe, m.strafe_t = self.rng.choice((-1, 1)), self.t + self.rng.uniform(1, 2.5)
+            ux, uy = norm(tgt.x - m.x, tgt.y - m.y)
+            rad = 0.6 if d > 70 else (-0.6 if d < 35 else 0.0)
+            want = norm(-uy * m.strafe + ux * rad, ux * m.strafe + uy * rad)
+        else:
+            if not hasattr(m, "roam") or self.t > m.roam_t:
+                m.roam = self._free_point(self.nc[0], self.nc[1], max(5.0, self.nr * 0.7))
+                m.roam_t = self.t + self.rng.uniform(15, 40)
+            want = self._house_path(m, m.roam[0], m.roam[1], 8.0)
+        m.move = want or (0.0, 0.0)
+        m.boost = False
+        m.fire = False
+        if tgt is not None:
+            g = self.cfg["weapons"]["gun"]
+            d = math.hypot(tgt.x - m.x, tgt.y - m.y)
+            mz = m.z + self.cfg["mech"]["muzzle_height"]
+            tt = d / g["speed"]
+            lx, ly = tgt.x + tgt.vx * tt, tgt.y + tgt.vy * tt
+            noise = SKILL[m.skill]
+            if self.tick % 10 == 0:
+                m.aim_noise = (self.rng.gauss(0, noise), self.rng.gauss(0, noise * 0.5))
+            nz = getattr(m, "aim_noise", (0.0, 0.0))
+            m.cmd_yaw = math.atan2(ly - m.y, lx - m.x) + nz[0]
+            m.cmd_pitch = math.atan2(tgt.z + 4.5 - mz, max(d, 1)) + nz[1]
             if d < g["range"] and abs(wrap(m.cmd_yaw - m.yaw)) < 0.1:
                 m.fire = True
         elif want:
@@ -611,6 +655,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--record", action="store_true", help="write a replay file per match into replays/")
     ap.add_argument("--budget-ms", type=float, default=50.0)
+    ap.add_argument("--ffa", action="store_true", help="free-for-all: house bots fight each other (head-to-head stand-in)")
     ap.add_argument("--drop-rivals", type=float, default=0.5, help="chance a house bot goes for each supply drop")
     a = ap.parse_args(argv[:i])
     cmd = argv[i + 1:]
@@ -622,7 +667,7 @@ def main():
     for n in range(a.first, a.first + a.matches):
         seed = a.seed * 1000 + n
         out = os.path.join(rl.REPLAYS, f"sim-s{seed}.jsonl.gz") if a.record else None
-        r = Sim(cfg, mp, seed, cmd, out, drop_rivals=a.drop_rivals).run(a.budget_ms)
+        r = Sim(cfg, mp, seed, cmd, out, drop_rivals=a.drop_rivals, ffa=a.ffa).run(a.budget_ms)
         pts.append(16 - r["place"])
         print(f"match {n + 1:2} seed {seed}: place {r['place']:2} ({16 - r['place']:2} pts)  died {r['cause']:16} at {r['t']:5.1f}s  kills {r['kills']}  drops {r['drops']}"
               + (f"  late {r['late']}" if r["late"] else "") + (f"  stderr: {r['errs'][-1]}" if r["errs"] else ""), flush=True)
