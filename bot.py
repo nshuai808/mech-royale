@@ -3,6 +3,7 @@ import json
 import math
 import os
 
+import aim
 import botlog
 import loot
 import mechfight as mf
@@ -97,6 +98,16 @@ class Bot:
             aim = [math.atan2(t[1] - y, t[0] - x), math.atan2(t[2] - z - 2.5, dist)]
             act.update(aim=aim, fire=self._fire(me, dist))
             mf.draw.line([x, y, z + 7], [t[0], t[1], t[2] + 4.5], "#ff5040")
+        a = self._aim(obs, climbing)
+        if a is not None:
+            if a.aim is not None:
+                act["aim"] = list(a.aim)
+            if a.fire is not None:
+                act["fire"] = a.fire
+            if a.reload:
+                act["reload"] = True
+            if a.move is not None:  # fight movement outranks loot and the zone walk (V2_MERGE goal priority); aim.py already yields near the zone edge
+                act["move"] = list(a.move)
         mf.draw.point([goal[0], goal[1], z], "#ffd060" if d.goal is not None else "#40c0ff", 6)
         mf.draw.label(f"hp {me['hp']:.0f} · {len(enemies)} in sight" + (f" · {d.reason} {d.kind}" if d.kind else ""))
         mode = "fight" if enemies else ("loot" if d.goal is not None else "to_zone")
