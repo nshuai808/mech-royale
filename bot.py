@@ -1,11 +1,13 @@
 """mech-royale v2 (integrated): loot (H-LOO/H-WPN) + upgrades (H-UPG) + perception (H-PER) + navigation/stealth
-(H-NAV/H-STL) + fight-or-flee/regen (H-ENG/H-REG) + aiming/fight movement (H-AIM/H-MOV).
+(H-NAV/H-STL) + fight-or-flee/regen (H-ENG/H-REG) + aiming/fight movement (H-AIM/H-MOV) + zone safety (H-ZON)
++ supply drops (H-DRP).
 
 bot.py is the only place the components meet (docs/V2_MERGE.md). Every component call is wrapped: a failure means that
-component has no opinion and the bot falls back toward v1 behaviour. Not covered yet: zone shaping and supply drops
-(H-ZON/H-DRP): the default goal is still the centre of the next circle.
+component has no opinion and the bot falls back toward v1 behaviour.
 
-Goal priority (highest first): engage retreat/regen > fight movement (aim) > loot goal > zone walk.
+Goal priority (highest first): zone CRITICAL > engage retreat/regen (a near, quiet drop preempts retreat; any worth-it
+drop preempts regen) > fight movement (aim; yields to zone GO+ while outside, and to staying in a ring we capture) >
+supply drop > zone GO+ > loot > zone idle walk.
 Action-field owners: take/drop = loot; pick = upgrades; aim/fire/reload = aim (engage may hold fire / set the resting
 aim / ask for a reload); move = arbiter (engage retreat, aim strafe, else nav toward the goal); boost/jump = arbiter.
 """
@@ -22,6 +24,8 @@ import mechfight as mf
 import nav
 import percept
 import upgrades
+import zone
+import drops
 
 SLOW_MS = 35.0      # a decision slower than this makes us skip the optional heavy components for a while
 SLOW_SKIP_TICKS = 10
@@ -62,6 +66,21 @@ class Bot:
                 self.per = percept.Perception(hello, params=percept.load_params(overrides=pp))
             except Exception as e:  # no perception = loot builds its own threats
                 botlog.trace(0, mode="per_error", err=repr(e))
+
+        self.zone = None
+        try:
+            zp = self.params.get("zone") or {}
+            if zp.get("enabled", True):
+                self.zone = zone.ZoneTracker(hello, zp)
+        except Exception as e:  # no zone tracker = default walk to the next circle centre
+            botlog.trace(0, mode="zone_init_error", err=repr(e))
+        self.drops = None
+        try:
+            dpp = self.params.get("drops") or {}
+            if dpp.get("enabled", True):
+                self.drops = drops.DropPlanner(hello, dpp)
+        except Exception as e:  # no drop planner = drops ignored
+            botlog.trace(0, mode="drops_init_error", err=repr(e))
 
         self.nav = self._build_nav(hello)
         self.engage = self._make_engage(hello)
@@ -122,6 +141,27 @@ class Bot:
         except Exception as e:
             botlog.trace(obs["tick"], mode="loot_error", err=repr(e))
             return loot.Decision(reason="error")
+
+    def _zone(self, obs):
+        """Zone plan (H-ZON); None = no opinion (default walk to the next circle centre)."""
+        if self.zone is None:
+            return None
+        try:
+            return self.zone.update(obs)
+        except Exception as e:
+            botlog.trace(obs["tick"], mode="zone_error", err=repr(e))
+            return None
+
+    def _drops(self, obs, zp):
+        """Supply-drop decision (H-DRP); a failure means drops are ignored."""
+        if self.drops is None:
+            return drops.DropDecision(reason="off")
+        try:
+            return self.drops.step(obs, zone_plan=zp, world=self.world,
+                                   path_cost=self.nav.path_cost if self.nav else None)
+        except Exception as e:
+            botlog.trace(obs["tick"], mode="drops_error", err=repr(e))
+            return drops.DropDecision(reason="error")
 
     def _pick(self, obs):
         """Upgrade pick (H-UPG). Runs every tick (it tracks combat lulls); any failure means the v1 default, pick 0."""
@@ -194,20 +234,48 @@ class Bot:
             act["drop"] = d.drop
 
         e = self._engage(obs)
+        zp = self._zone(obs)
+        dd = self._drops(obs, zp)
+        zurg = zp.urgency if zp is not None else 0
+        zone_go = zp is not None and zp.goal is not None and zurg >= self.zone.p.override_loot_urgency
+        zone_critical = zp is not None and zp.goal is not None and zurg >= zone.CRITICAL
+        drop_on = dd.goal is not None
+        # a worth-it drop beats standing still to regen; a near drop with nobody around it beats a retreat
+        if drop_on and e.mode == "regen" and dd.preempt_regen:
+            e.mode = "neutral"
+        if drop_on and e.mode == "retreat" and dd.preempt_retreat:
+            e.mode = "neutral"
+        if zone_critical and e.mode in ("retreat", "regen"):
+            e.mode = "neutral"                    # the edge kills faster than the hunter: go in first
         quiet = e.mode in ("retreat", "regen")   # retreat/regen outrank fight, loot and the zone walk
+        capturing = drop_on and dd.phase == "capture"
 
-        # goal: retreat > loot > zone centre
+        # goal: zone critical > retreat > drop > zone GO > loot > zone idle
         default_goal = False
-        if e.mode == "retreat" and e.goal is not None:
-            goal = e.goal
+        zone_boost = False
+        goal_src = "zone_idle"
+        if zone_critical:
+            goal, zone_boost, goal_src = (zp.goal[0], zp.goal[1], z), zp.boost, "zone"
+        elif e.mode == "retreat" and e.goal is not None:
+            goal, goal_src = e.goal, "retreat"
         elif e.mode == "retreat" and e.move is not None:
-            goal = (x + 50 * e.move[0], y + 50 * e.move[1], z)
+            goal, goal_src = (x + 50 * e.move[0], y + 50 * e.move[1], z), "retreat"
+        elif drop_on:
+            goal, goal_src = dd.goal, "drop_" + dd.phase
+            default_goal = dd.hold               # nav may stand still (silent) once there
+        elif zone_go:
+            goal, zone_boost, goal_src = (zp.goal[0], zp.goal[1], z), zp.boost, "zone"
         elif d.goal is not None:
-            goal = d.goal
+            goal, goal_src = d.goal, "loot"
         else:
-            goal = obs["zone"]["next_center"]
+            if zp is not None and zp.goal is not None:
+                goal = (zp.goal[0], zp.goal[1], z)           # a SOON zone goal still beats the idle walk
+            elif zp is not None and self.zone.p.idle_goal == "comfort":
+                goal = (zp.comfort_goal[0], zp.comfort_goal[1], z)
+            else:
+                goal = obs["zone"]["next_center"]
             default_goal = True
-        climbing = (not quiet) and d.goal is not None and d.goal[2] - z > self.planner.p.roof_dz_m
+        climbing = (not quiet) and goal_src == "loot" and d.goal[2] - z > self.planner.p.roof_dz_m
 
         enemies = sorted((m for m in obs["mechs"] if m["kind"] == "mech"),
                          key=lambda m: math.dist(m["pos"], me["pos"]))
@@ -215,7 +283,8 @@ class Bot:
         # base action: walk straight at the goal, face the way we walk (v1 behaviour)
         yaw = math.atan2(goal[1] - y, goal[0] - x)
         act.update(move=[math.cos(yaw), math.sin(yaw)], aim=[yaw, 0.0],
-                   boost=(not me["in_zone"]) or (climbing and not me["grounded"]) or e.boost,
+                   boost=(not me["in_zone"]) or zone_boost or (drop_on and dd.boost) or (climbing and not me["grounded"])
+                   or e.boost,
                    jump=(climbing or tick % 40 == 0) and not quiet)
 
         # aiming + fight movement (aim owns aim/fire/reload)
@@ -236,8 +305,20 @@ class Bot:
 
         # movement arbiter
         strafing = (not quiet) and a is not None and a.move is not None
+        if strafing and (zone_critical or (zone_go and not zp.inside)):
+            strafing = False                         # outside and the edge is coming: walk in, keep shooting
         nd = None
-        if e.mode == "regen":
+        if capturing and not zone_critical:
+            # stand inside the ring: strafe only while well inside, otherwise step back toward the centre
+            if dd.move is not None and (dd.move[0] or dd.move[1]):
+                act["move"] = [dd.move[0], dd.move[1]]
+            elif strafing:
+                act["move"] = [a.move[0] * 0.35, a.move[1] * 0.35]
+            else:
+                act["move"] = [0.0, 0.0]
+            act["boost"] = False
+            act["jump"] = False
+        elif e.mode == "regen":
             act["move"] = [0.0, 0.0]                 # regen: stand still (silent), face the last-known threat
         elif strafing:
             act["move"] = list(a.move)               # fight movement outranks loot and the zone walk
@@ -268,7 +349,7 @@ class Bot:
         mf.draw.point([goal[0], goal[1], z], "#40ff90" if quiet else ("#ffd060" if d.goal is not None else "#40c0ff"), 6)
         mf.draw.label(f"hp {me['hp']:.0f} · {len(enemies)} in sight" + (f" · {d.reason} {d.kind}" if d.kind else "")
                       + (f" · {e.mode}" if e.mode != "neutral" else ""))
-        mode = e.mode if quiet else ("fight" if enemies else ("loot" if d.goal is not None else "to_zone"))
+        mode = e.mode if quiet else ("fight" if enemies else goal_src)
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
         if elapsed_ms > SLOW_MS:
             self.slow_until = tick + SLOW_SKIP_TICKS
@@ -278,6 +359,8 @@ class Bot:
                      upg=self.upg.debug_label() if self.upg is not None else "",
                      aim=a.reason if a else None, nav=nd.reason if nd else None,
                      engage=f"{e.mode}|R={e.diag.get('R')}|{e.reason}",
+                     zone=zp.urgency_name if zp else None, zmargin=round(zp.margin, 1) if zp else None,
+                     drop=f"{dd.drop_id}|{dd.phase}|{dd.reason}" if dd.goal is not None else dd.reason,
                      per=None if self.world is None else [len(self.per.tracks), round(self.per.cloud.mass, 1),
                                                           len(self.world.hot), round(self.per.times[-1], 1)],
                      ms=round(elapsed_ms, 1))
