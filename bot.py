@@ -175,14 +175,15 @@ class Bot:
             # inside a ring we hold: 4 s alone = 3 cubes + full HP. Stay (and keep shooting) unless it stalls.
             self.mode, why = "drop", dd.reason
             move = dd.move if dd.move and (dd.move[0] or dd.move[1]) else None
-        elif threats and (len(exposed) >= 2 or self._should_evade(close, hp_frac, recently_hurt, target)):
+        elif threats and (self._third_party(target, enemies, exposed)
+                          or self._should_evade(close, hp_frac, recently_hurt, target)):
             self.mode = "evade"
             move, why = self._evade(threats)
             boost = me["energy"] > 25 and (hp_frac < 0.6 or len(exposed) >= 2)
         elif target is not None:
             self.mode, why = "fight", f"#{target['id']}"
             move = self._fight_move(target)
-        elif exposed or (threats and self.t - self.last_hurt_t < 6):
+        elif any(e["_d"] < 150 for e in exposed) or (threats and self.t - self.last_hurt_t < 6):
             self.mode = "hide"
             move, why = self._evade(threats)
         else:
@@ -324,6 +325,42 @@ class Bot:
                         best = n
         self.target_id = best["id"] if best else None
         return best
+
+    def _ttk(self, target):
+        """Seconds to kill the target with the gun at its range (reload and accuracy included); None if unknown."""
+        if target is None or target["kind"] != "mech" or target.get("hp") is None:
+            return None
+        g = self.w["gun"]
+        mag, cd, rl = g.get("mag", 12), g.get("cooldown", 0.24), g.get("reload", 2.4)
+        d = target["_d"]
+        acc = 0.66 if d < 80 else (0.5 if d < 150 else 0.3)
+        dps = g.get("damage", 45) / cd * (mag * cd) / (mag * cd + rl) * acc
+        return target["hp"] / max(dps, 1.0)
+
+    def _third_party(self, target, enemies, exposed):
+        """Back off when someone else can start shooting us before we finish the target (time to kill + 1 s),
+        or something we can't see is hitting us; stay if the target dies within 1.2 s."""
+        ttk = self._ttk(target)
+        if ttk is None:
+            return len(exposed) >= 2                        # no fight to finish: v2's rule
+        if ttk < 1.2:
+            return False
+        t, m = self.t, self.map
+        seen = {e["id"] for e in enemies}
+        if any(i not in seen and i < 100 and at > t - 2.0 for i, (at, _) in self.attackers.items()):   # mech ids 0-15
+            return True                                     # an unseen enemy is hitting us
+        for e in enemies:
+            if e is target:
+                continue
+            d = e["_d"]
+            los = m is None or m.los(self.x, self.y, e["pos"][0], e["pos"][1])
+            if self.attackers.get(e["id"], (-99,))[0] > t - 2.0 or (los and d < 150):
+                tts = 0.0
+            else:
+                tts = max(0.0, d - 150) / 12.0 + (0.0 if los else 2.0)
+            if tts < ttk + 1.0:
+                return True
+        return False
 
     def _should_evade(self, close, hp_frac, recently_hurt, target):
         if len(close) >= 2 and hp_frac < 0.85:
