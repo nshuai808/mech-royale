@@ -86,3 +86,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | --- | --- | --- | --- |
 | Fri ~8:35 PM | `c995b28` | 1.15 | Starter bot + logging harness. Same as the baseline: the starter is deterministic on the fixed seeds. |
 | Fri ~8:40 PM | `3c42f4f` | **2.92** | Survival bot v2: hide when 2+ see us, fight only the hunter, A* pathing, cover. Sim had predicted ~2.0. |
+| Sat | `eed4dc6` | 0.73 | `v2-zone-drops` (v2-integrated arbiter + zone.py + drops.py). Big regression; the integrated arbiter, not zone/drops, is the suspect (it was already below main in the sim). |

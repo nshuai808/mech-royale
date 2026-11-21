@@ -76,6 +76,16 @@ The final is a real free-for-all against other teams: there, survival and placem
 | v2 + zone commit (current) | 2.00 | 2.00 |
 | **real leaderboard** | starter 1.15 | v2 **2.92** |
 
+Sim with supply drops modelled (tools/sim.py now has drops + rival house bots), 24 matches per seed set:
+
+| Version | s1 | s2 | s3 | s4 | s5 | s6 | s7 | s8 | mean (192) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| main (v2, 2.92 real) | 2.29 | 1.92 | 2.29 | 2.46 | 2.54 | 2.88 | 2.50 | 1.88 | 2.35 |
+| main + zone.py + drops.py (`claude/nifty-galileo-lw5l5t`) | 2.42 | 1.54 | 2.42 | 2.12 | 2.00 | 2.42 | 2.92 | 1.88 | 2.21 |
+
+Difference is inside the noise (s.e. ~0.18). Drop captures 12 vs 8 matches. The extra zone deaths are the sim's
+"stuck in a pocket without jets" artifact or late-game runs that still placed better than main.
+
 ## Status / next steps
 - [x] Repo set up from the Python starter.
 - [x] Logging harness, simulator, fuzz test.
@@ -87,3 +97,6 @@ The final is a real free-for-all against other teams: there, survival and placem
 - [ ] Better 1v1: peek from cover, fight at the corner, reload in cover, use regen between hunters.
 - [ ] Loot: go for laser/lightning early; cubes from kills (killed mechs drop cubes + 2).
 - [ ] Late game: max HP via cubes/plating so we outlast others when the zone closes to 0.
+- [x] `eed4dc6` (`v2-zone-drops`, built on `v2-integrated`) scored **0.73** real. Don't build on `v2-integrated`.
+- [x] `claude/nifty-galileo-lw5l5t`: main's bot + `zone.py` (CRITICAL forces a zone run) + `drops.py` (replaces `_good_drop`;
+      holding a ring we capture outranks evade/fight), `params.json` knobs. Tests/check/fuzz pass. Sim neutral vs main. **Not submitted.**
