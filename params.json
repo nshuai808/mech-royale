@@ -14,5 +14,12 @@
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
     "enabled": true
+  },
+  "early_evade": {
+    "_note": "Step 2: with aggro on, break off to cover when >= `attackers` different mechs hit us within `window_s` and HP < `hp_frac`. enabled=false restores main.",
+    "enabled": true,
+    "attackers": 2,
+    "hp_frac": 0.8,
+    "window_s": 2.0
   }
 }

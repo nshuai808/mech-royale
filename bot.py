@@ -97,6 +97,9 @@ class Bot:
         self.roam, self.roam_t = None, -1.0
         # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
         self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
+        ee = load_params().get("early_evade") or {}
+        self.early_evade = {"enabled": bool(ee.get("enabled", True)), "attackers": int(ee.get("attackers", 2)),
+                            "hp_frac": float(ee.get("hp_frac", 0.8)), "window_s": float(ee.get("window_s", 2.0))}
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -200,7 +203,8 @@ class Bot:
             move = dd.move if dd.move and (dd.move[0] or dd.move[1]) else None
         elif threats and ((not self.aggro and (self._third_party(target, enemies, exposed)
                                                 or self._should_evade(close, hp_frac, recently_hurt, target)))
-                          or (self.aggro and hp_frac < 0.25 and len(exposed) >= 2)):
+                          or (self.aggro and hp_frac < 0.25 and len(exposed) >= 2)
+                          or (self.aggro and self._multi_hit(hp_frac))):
             self.mode = "evade"
             move, why = self._evade(threats)
             boost = me["energy"] > 25 and (hp_frac < 0.6 or len(exposed) >= 2)
@@ -465,6 +469,16 @@ class Bot:
             if tts < ttk + 1.0:
                 return True
         return False
+
+    def _multi_hit(self, hp_frac):
+        """Step 2: two or more different mechs hit us within window_s while we are below hp_frac: we are being flanked
+        (sim: most spawn-time deaths are 12-16 s duels where a second and third shooter join and hit our back). Break
+        off to cover now instead of at 25% HP."""
+        ep = self.early_evade
+        if not ep["enabled"] or hp_frac >= ep["hp_frac"]:
+            return False
+        recent = {i for i, (at, _) in self.attackers.items() if i < 100 and self.t - at < ep["window_s"]}
+        return len(recent) >= ep["attackers"]
 
     def _should_evade(self, close, hp_frac, recently_hurt, target):
         if len(close) >= 3:
