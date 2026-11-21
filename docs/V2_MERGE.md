@@ -71,7 +71,7 @@ Decisions worth knowing:
 | Navigation and stealth (H-NAV, H-STL) | | | `nav`, `stealth` | |
 | Fight-or-flee and regen (H-ENG, H-REG) | | | `engage` | |
 | Zone and supply drops (H-ZON, H-DRP) | | | `zone`, `drops` | |
-| Aiming and movement (H-AIM, H-MOV) | | | `aim`, `move` | |
+| Aiming and movement (H-AIM, H-MOV) | `v2-aim` | `Bot.aimer` (built in `__init__`), `Bot._aim`, 9-line apply block before the debug draw (overrides `aim`/`fire`/`reload`, suggests `move`), `aim=` trace field | `aim`, `move` | merged into `v2-aim`; unit-tested, untested against opponents. `aim.enabled=false` and `move.strafe_enabled=false` restore v2 behaviour exactly. Mortar firing is built but off (`mortar_enabled`) until NAV can say a trajectory is clear. |
 | Upgrades (H-UPG) | | | `upgrades` | |
 | Perception (H-PER) | | | `perception` | |
 

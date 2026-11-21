@@ -11,5 +11,32 @@
   "fire": {
     "special_margin": 0.9,
     "_note": "fire the slot-1 special only inside this fraction of its range"
+  },
+  "aim": {
+    "_note": "H-AIM knobs; defaults live in aim.py / aimcore.py, partial overrides allowed. Spec: claude/h-aim-mov-spec.md section 9. enabled=false restores the v2 aim/fire.",
+    "enabled": true,
+    "gun_p_min": 0.30,
+    "gun_max_range_m": 160,
+    "laser_release_p": 0.80,
+    "laser_extra_hold_s": 0.3,
+    "mortar_enabled": false,
+    "reload_idle_s": 1.0,
+    "turn_on_hit": true,
+    "fire_delay_s": 0.05,
+    "lead_order": 1,
+    "man_sigma_scale": 1.0
+  },
+  "move": {
+    "_note": "H-MOV knobs. Strafe holds are in decisions of 0.1 s. strafe_enabled=false turns fight movement off.",
+    "strafe_enabled": true,
+    "strafe_min_range_m": 50,
+    "zone_margin_m": 30,
+    "hold_min_dec": 4,
+    "hold_max_dec": 10,
+    "flip_prob": 1.0,
+    "range_lo_m": 60,
+    "range_hi_m": 140,
+    "dodge_enable": true,
+    "dodge_margin_m": 0.8
   }
 }

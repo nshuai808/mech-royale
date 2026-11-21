@@ -55,7 +55,8 @@ See `docs/V2_MERGE.md`: what v2 contains, the integration contract (action-field
 - [ ] Submit the unmodified starter once to confirm the pipeline (expect ~1.15).
 - [ ] Survival core: zone-aware movement with margin, cover / line-of-sight breaking, retreat + regen when hurt.
 - [x] Loot + weapon pick v1 (branch `v2-loot`): `loot.py`, knobs in `params.json`, straight-line walk to loot goal (no nav yet). Mortar base value is 0 until a ballistic aim solver exists.
-- [ ] Charge-laser handling, mortar lobs, offers and upgrades.
+- [x] Aiming + fight movement v1 (branch `v2-aim`): `aim.py` + `aimcore.py` (linear gun lead, slew-aware fire gate, laser hold/release, random-hold strafing, bullet dodge, tactical reload, face-the-hit), knobs in `params.json` `aim`/`move`, tests `test_aim.py` + `test_aimcore.py`. Mortar firing built but off. Not yet: laser LOS-break (needs NAV cover query), lead classifier.
+- [ ] Charge-laser handling (defence), offers and upgrades.
 - [ ] Squad handling: avoid being the weakest visible target; third-party instead of first contact.
 - [ ] Timing guard: fall back to a cheap action if a decision runs long.
 - [ ] Maybe: a crude local simulator (map collision + zone + simple enemies) so play strength can be tested offline.
