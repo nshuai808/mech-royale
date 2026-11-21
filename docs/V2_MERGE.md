@@ -66,14 +66,15 @@ Decisions worth knowing:
 
 ## 4. Integrated components
 
-All six component branches are merged on branch `v2-integrated`. `bot.py` there is the single arbiter: goal priority is engage retreat/regen > aim strafe > loot goal > zone walk; nav turns the goal into a move (skipped while strafing or regenerating); every component call is try/except; a decision over 35 ms makes the bot skip perception and nav for the next 10 ticks.
+All six component branches are merged on branch `v2-integrated`; `v2-zone-drops` adds zone (H-ZON, from `v2-zone`) and supply drops (H-DRP, new `drops.py`) on top of it. `bot.py` there is the single arbiter: goal priority is engage retreat/regen > aim strafe > loot goal > zone walk; nav turns the goal into a move (skipped while strafing or regenerating); every component call is try/except; a decision over 35 ms makes the bot skip perception and nav for the next 10 ticks.
 
 | Component | Branch | Hook in `bot.py` | Params section | Status |
 | --- | --- | --- | --- | --- |
 | Loot and weapon choice (H-LOO, H-WPN) | `v2-loot` | `Bot._loot` (gets perception `threats=` and nav `path_cost=`), goal, `take`/`drop`, `Bot._fire` fallback | `loot`, `fire` | in `v2-integrated` |
 | Navigation and stealth (H-NAV, H-STL) | `v2-nav` | `Bot._build_nav`, `Bot._nav`; move/boost/jump from the nav hint | `nav`, `stealth` | in `v2-integrated`. Perception is not yet fed to nav `threats=` |
 | Fight-or-flee and regen (H-ENG, H-REG) | `v2-engage` | `Bot._make_engage`, `Bot._engage`; retreat goal, regen stand-still, hold fire, resting aim | `engage` | in `v2-integrated`. See `docs/ENGAGE.md` |
-| Zone and supply drops (H-ZON, H-DRP) | | | `zone`, `drops` | **not built**: default goal is the next circle centre, drops are ignored |
+| Zone safety (H-ZON) | `v2-zone` | `Bot._zone` (`zone.ZoneTracker.update`); CRITICAL outranks everything and cancels retreat/regen; GO+ outranks loot and stops strafing while outside; SOON/idle feed the default walk | `zone` | in `v2-zone-drops` |
+| Supply drops (H-DRP) | `v2-zone-drops` | `Bot._drops` (`drops.DropPlanner.step`, gets the zone plan, perception `world` and nav `path_cost`); drop goal beats zone GO and loot; a worth-it drop cancels regen, a near quiet one cancels retreat; while capturing the arbiter keeps us inside the ring | `drops` | in `v2-zone-drops` |
 | Aiming and movement (H-AIM, H-MOV) | `v2-aim` | `Bot._aim`; aim/fire/reload, strafe suggestion | `aim`, `move` | in `v2-integrated`. Mortar lobs stay off (`mortar_enabled` false, loot mortar value 0) |
 | Upgrades (H-UPG) | `v2-upgrades` | `Bot._pick` (only sets `pick`) | `upgrades` | in `v2-integrated` |
 | Perception (H-PER) | `v2-per` | `Bot._perceive` (`self.world`), loot `threats=` hand-off | `perception` | in `v2-integrated`; feeds loot only |
@@ -121,3 +122,19 @@ Constraints that always apply: 50 ms per decision on 1 CPU, no network, read-onl
 - Perception sets no action fields. Its only effect today is `threats=` into `LootPlanner.step`. Dodge/move stays with the arbiter (H-MOV): `world.incoming[0].dodge` is ready to use.
 - Files: `percept.py`, `geom.py` (map raster and LOS; name may collide with a nav module only if that module is also called `geom`), `test_percept.py`, harness `tools/per_sim.py` + `tools/per_eval.py` (ablations: `python3 tools/per_eval.py 6 90 0.1 full,no_sound,dead_reckon late`).
 - Design, verdicts and knob sensitivity: `claude/h-per.md` in the Claude project.
+
+## 8. Zone + supply drops (`v2-zone-drops`)
+
+Arbiter goal priority is now: zone CRITICAL > engage retreat/regen > fight strafe > supply drop > zone GO+ > loot > zone idle.
+- Zone CRITICAL cancels retreat/regen (the edge kills faster than a hunter). Zone GO+ while outside stops strafing (walk in, keep shooting).
+- `drops.py` `DropPlanner.step(obs, zone_plan, world, path_cost) -> DropDecision(goal, phase, move, hold, boost, utility, preempt_regen, preempt_retreat)`.
+  Phases: `approach` (walk/boost to the ring), `wait` (too early: hold at `standoff_m` on our side), `capture` (inside the ring: the
+  arbiter uses `DropDecision.move` to stay within `ring_inner_frac`, small strafes only, no boost/jump).
+- Utility = `value_base` + `value_heal` x missing HP - travel time - path exposure - enemies near the ring - unseen mass - contested.
+  Refused: unreachable, farther than `max_dist_m`, arriving more than `late_s` after landing, ring outside the circle at arrival or
+  capture end, zone CRITICAL, or (main's v1 rule) any seen enemy within `self_threat_radius_m` of us unless we are already capturing.
+- Gives up after `stall_s` in the ring with a frozen clock (someone shares it) and ignores that drop for `retry_s`.
+- Verified locally: `test_drops.py` (18 incl. 2 bot.py integration), all other test files, check.py PASS (p99 9.1 ms), fuzz 1200 decisions
+  0 exceptions (worst 13.8 ms), replay p99 5.7 ms with no `*_error` traces. Sim A/B (24 matches, seeds 1-2): 1.63 vs `v2-integrated` 1.54,
+  noise level; zone deaths 2 vs 3. The sim has no drops, so drop play is untested until a practice submission.
+- Knobs that matter most: `drops.self_threat_radius_m`, `drops.min_utility`, `drops.value_heal`, `zone.override_loot_urgency`.
