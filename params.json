@@ -94,5 +94,9 @@
       55,
       70
     ]
+  },
+  "lt_energy": {
+    "_note": "holding lightning: no boost in evade/hide with an enemy < 50 m, fight boost only at energy >= 70 (energy = lightning ammo); off = integ-3",
+    "enabled": true
   }
 }

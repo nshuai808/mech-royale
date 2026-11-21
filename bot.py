@@ -96,6 +96,9 @@ class Bot:
         self.hurt_bearing = None
         self.heard = None                # (t, bearing, dist)
         self.short_until = -1.0
+        # lt_energy: energy is the lightning's ammo (3 per 60-dmg shot = 20 dmg/energy); boosting burns 17/s (~340 dmg/s
+        # of lightning). Holding lightning near an enemy, don't boost in evade/hide; close in with a boost only if energy >= 70
+        self.lt_energy = bool((load_params().get("lt_energy") or {}).get("enabled", False))
         self.hist = []                   # (t, x, y)
         self.escape_until, self.escape_dir = -1.0, (0.0, 0.0)
         self.strafe_sign, self.strafe_until = 1, 0.0
@@ -394,6 +397,11 @@ class Bot:
                     mf.draw.line([x, y, z + 2], [x + dv[0] * 12, y + dv[1] * 12, z + 2], "#ffffff")
         if move is not None and self.mode in ("move", "loot", "heal", "drop") and not boost and not boost2:
             pass  # walking at full speed: faster than sneaking, and the squad hunts us anyway
+        if self.lt_energy and boost and any(w and w["kind"] == "lightning" for w in me["weapons"]):
+            if self.mode in ("evade", "hide") and me["in_zone"] and any(e["_d"] < 50 for e in enemies):
+                boost = False    # save the energy for lightning shots at the enemy that is in arc range
+            elif self.mode == "fight" and me["energy"] < 70:
+                boost = False    # walk in: arriving with an empty tank leaves the lightning dry
         act["move"] = [round(mv[0], 3), round(mv[1], 3)]
         act["boost"] = bool(boost or boost2)
         if jump:
