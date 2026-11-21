@@ -24,10 +24,15 @@ import random
 import time
 import traceback
 
+import aim
 import botlog
 import drops
+import engage
+import loot
 import mechfight as mf
+import percept
 import roof
+import upgrades
 import zone
 from nav import AStar, Map
 
@@ -119,6 +124,103 @@ class Bot:
                 self.dp = drops.DropPlanner(hello, params.get("drops"))
         except Exception:
             mf.log("drop planner init failed:\n" + traceback.format_exc())
+        self._init_v2(hello, params)
+
+    # ================================================================== v2 components (each behind params.json "enabled")
+    def _init_v2(self, hello, params):
+        """upgrades.py, percept.py, loot.py, engage.py, aim.py. Any failure = that component has no opinion
+        and the original bot logic runs instead."""
+        cfg = self.cfg
+        self.upg = self.per = self.planner = self.engage = self.aimer = None
+        self.world, self.per_errors, self.slow_until = None, 0, -1
+        self.loot_d, self.eng, self.aim_d = None, engage.Decision(), None
+
+        def on(name):
+            return (params.get(name) or {}).get("enabled", True) is not False
+
+        try:
+            if on("upgrades"):
+                self.upg = upgrades.UpgradePolicy(cfg, params.get("upgrades"))
+        except Exception:
+            mf.log("upgrades init failed:\n" + traceback.format_exc())
+        try:
+            if on("perception"):
+                self.per = percept.Perception(hello, params=percept.load_params(overrides=params.get("perception") or {}))
+        except Exception:
+            mf.log("perception init failed:\n" + traceback.format_exc())
+        try:
+            if on("loot"):
+                self.planner = loot.LootPlanner(cfg, loot.LootParams.from_dict(params.get("loot")))
+        except Exception:
+            mf.log("loot planner init failed:\n" + traceback.format_exc())
+        try:
+            if on("engage"):
+                occ = None
+                try:
+                    occ = engage.Occluder(hello["map"]["dir"])
+                except Exception:
+                    mf.log("engage occluder failed:\n" + traceback.format_exc())
+                self.engage = engage.Engagement(hello, params=engage.params_from_dict(params.get("engage")), occluder=occ)
+        except Exception:
+            mf.log("engage init failed:\n" + traceback.format_exc())
+        try:
+            if on("aim"):
+                self.aimer = aim.AimController(cfg, params.get("aim"), params.get("move"), seed=hello.get("seed", 0))
+        except Exception:
+            mf.log("aim init failed:\n" + traceback.format_exc())
+
+    def _perceive(self, obs):
+        if self.per is None or obs["tick"] < self.slow_until:
+            self.world = None
+            return None
+        try:
+            self.world = self.per.update(obs)
+            self.per_errors = 0
+            return self.per.loot_threats(loot.Threat) or None
+        except Exception:
+            self.world = None
+            self.per_errors += 1
+            botlog.trace(obs["tick"], mode="per_error")
+            if self.per_errors >= 20:
+                self.per = None
+            return None
+
+    def _loot_plan(self, obs, threats):
+        if self.planner is None:
+            return None
+        try:
+            return self.planner.step(obs, threats=threats)
+        except Exception:
+            botlog.trace(obs["tick"], mode="loot_error")
+            return loot.Decision(reason="error")
+
+    def _engage_step(self, obs):
+        if self.engage is None or obs["tick"] < self.slow_until:
+            return engage.Decision()
+        try:
+            return self.engage.update(obs)
+        except Exception:
+            botlog.trace(obs["tick"], mode="engage_error")
+            return engage.Decision()
+
+    def _aim_step(self, obs, target):
+        if self.aimer is None:
+            return None
+        try:
+            pid = target["id"] if target is not None and target["kind"] == "mech" else None
+            return self.aimer.step(obs, suppress_move=False, primary_id=pid)
+        except Exception:
+            botlog.trace(obs["tick"], mode="aim_error")
+            return None
+
+    def _pick(self, obs):
+        """Upgrade pick: upgrades.py, else the original preference list. Runs every tick (the policy tracks lulls)."""
+        try:
+            if self.upg is not None:
+                return self.upg.pick(obs)
+        except Exception:
+            botlog.trace(obs["tick"], mode="upgrades_error")
+        return self._pick_upgrade(obs["offer"]) if obs.get("offer") else None
 
     # ================================================================== main
     def act(self, obs):
@@ -142,8 +244,12 @@ class Bot:
             self.dd = self.dp.step(obs, zone_plan=self.zp)   # never raises
 
         act = {"tick": obs["tick"]}
-        if obs.get("offer"):
-            act["pick"] = self._pick_upgrade(obs["offer"])
+        pk = self._pick(obs)
+        if pk is not None:
+            act["pick"] = pk
+        loot_threats = self._perceive(obs)
+        self.loot_d = self._loot_plan(obs, loot_threats)
+        self.eng = self._engage_step(obs)
 
         enemies = [m for m in obs["mechs"] if m["kind"] == "mech"]
         npcs = [m for m in obs["mechs"] if m["kind"] == "npc"]
@@ -162,6 +268,11 @@ class Bot:
         if recently_hurt and self.hurt_bearing is not None and not any(
                 self.attackers.get(e["id"], (-99,))[0] > self.t - 2.5 for e in enemies):
             threats.append((x + 80 * math.cos(self.hurt_bearing), y + 80 * math.sin(self.hurt_bearing)))
+        if self.world is not None:       # unseen hot spots (sound / last-seen, tracked by percept.py) count as threats
+            for c in getattr(self.world, "hot", ()):
+                if getattr(c, "conf", 0) >= 0.5 and math.hypot(c.pos[0] - x, c.pos[1] - y) < 220:
+                    threats.append((c.pos[0], c.pos[1]))
+        self.aim_d = self._aim_step(obs, target)
         m = self.map
         exposed = [e for e in enemies if e["_d"] < 200 and (m is None or m.los(x, y, e["pos"][0], e["pos"][1]))]
 
@@ -180,12 +291,27 @@ class Bot:
         on_roof, roof_go = self._roof_state()
         dd = self.dd
         capturing = dd.goal is not None and dd.phase == "capture"
+        eg = self.eng
+        if dd.goal is not None and ((eg.mode == "regen" and dd.preempt_regen) or (eg.mode == "retreat" and dd.preempt_retreat)):
+            eg.mode = "neutral"          # a worth-it supply drop beats standing still / a retreat
+        quiet = eg.mode in ("retreat", "regen") and not capturing
 
         # ---------------------------------------------------------- modes
         if not me["in_zone"] or hurry:
             self.mode, why = "zone", "outside" if not me["in_zone"] else ("critical" if zone_crit else "late")
             move = self._go_circle(self.gx, self.gy, self.gr)
             boost = me["energy"] > 20 and (not me["in_zone"] or hurry)
+        elif quiet:
+            # engage.py: retreat to its refuge / stand still and regenerate (outranks fight, loot and the zone walk)
+            self.mode, why = eg.mode, eg.reason[:40]
+            if eg.mode == "retreat":
+                if eg.goal is not None:
+                    move = self._go_point(eg.goal[0], eg.goal[1], 3.0)
+                elif eg.move is not None:
+                    move = norm(eg.move[0], eg.move[1])
+                boost = bool(eg.boost) and me["energy"] > 20
+            else:
+                move = None
         elif on_roof:
             # up high: stand back from the edges (ground bots can't see us there), shoot whatever we can see
             sx, sy = self.roof.stand
@@ -207,6 +333,10 @@ class Bot:
         elif target is not None:
             self.mode, why = "fight", f"#{target['id']}"
             move = self._fight_move(target)
+            ad = self.aim_d
+            if ad is not None and ad.move is not None and target["kind"] == "mech" and (ad.move[0] or ad.move[1]) \
+                    and self.in_safe(x + ad.move[0] * 10, y + ad.move[1] * 10):
+                move = norm(ad.move[0], ad.move[1])
             lt_held = any(w and w["kind"] == "lightning" for w in me["weapons"])
             if (lt_held and target["kind"] == "mech" and target["_d"] > 40 and hp_frac > 0.5
                     and len(exposed) <= 1 and me["energy"] > 35):
@@ -269,6 +399,8 @@ class Bot:
         else:
             mv = self._steer(move) if move is not None else (0.0, 0.0)
             mv, jump, boost2 = self._unstick(mv, move is not None)
+            if self.mode == "retreat" and eg.speed < 1.0:
+                mv = (mv[0] * eg.speed, mv[1] * eg.speed)       # slip away quietly
         if move is not None and self.mode in ("move", "loot", "heal", "drop") and not boost and not boost2:
             pass  # walking at full speed: faster than sneaking, and the squad hunts us anyway
         act["move"] = [round(mv[0], 3), round(mv[1], 3)]
@@ -282,9 +414,13 @@ class Bot:
         if loot_take:
             act.update(loot_take)
 
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        if elapsed_ms > 35.0:
+            self.slow_until = obs["tick"] + 10     # skip perception / engage for a second if we ran long
         botlog.trace(obs["tick"], mode=self.mode, why=why, target=None if target is None else target["id"],
                      hp=round(me["hp"]), zone=zp.urgency_name if zp else None,
-                     drop=f"{dd.drop_id}|{dd.phase}" if dd.goal is not None else dd.reason, ms=round((time.perf_counter() - t0) * 1000, 2))
+                     drop=f"{dd.drop_id}|{dd.phase}" if dd.goal is not None else dd.reason, engage=f"{eg.mode}|{eg.reason[:30]}", aim=self.aim_d.reason if self.aim_d else None,
+                     loot=self.loot_d.reason if self.loot_d else None, ms=round(elapsed_ms, 2))
         mf.draw.label(f"{self.mode} {why} hp {me['hp']:.0f}")
         return act
 
@@ -534,7 +670,11 @@ class Bot:
         have = {w["kind"] for w in slots if w}
         worst = min((WEAPON_RANK[w["kind"]] for w in slots[1:] if w), default=-1)
         best, best_s = None, -1e9
-        for p in obs.get("pickups", []):
+        ld = self.loot_d
+        if ld is not None:               # loot.py plans the weapon choice; cubes and crates below stay as they were
+            if ld.goal is not None and self.in_safe(ld.goal[0], ld.goal[1]):
+                return (ld.goal[0], ld.goal[1], f"get {ld.kind}")
+        for p in (obs.get("pickups", []) if ld is None else ()):
             if p["kind"] in have or abs(p["pos"][2] - self.z) > 3.5:
                 continue
             gain = WEAPON_RANK[p["kind"]] - worst
@@ -581,6 +721,14 @@ class Bot:
                 and s1["kind"] != kind and s1["kind"] in SPECIAL + ("mortar",))
 
     def _take(self, obs):
+        ld = self.loot_d
+        if ld is not None:
+            out = {}
+            if ld.take is not None:
+                out["take"] = ld.take
+            if ld.drop is not None:
+                out["drop"] = ld.drop
+            return out or None
         slots = self.me["weapons"]
         have = {w["kind"] for w in slots if w}
         for p in obs.get("pickups", []):
@@ -703,7 +851,10 @@ class Bot:
         slots = me["weapons"]
         fire = [False, False]
         aim = None
-        if target is not None:
+        ad = self.aim_d
+        if target is not None and target["kind"] == "mech" and ad is not None and ad.aim is not None and ad.fire is not None:
+            aim, fire = list(ad.aim), list(ad.fire)      # aim.py: lead, laser release, p(hit) gating
+        elif target is not None:
             aim, fire = self._engage(target, slots)
         if aim is None and target is None and self.mode in ("loot", "hold", "move", "roam"):
             cr = self._crate(obs, 60)
@@ -717,6 +868,13 @@ class Bot:
         act["aim"] = [round(aim[0], 4), round(aim[1], 4)]
         if any(fire):
             act["fire"] = fire
+        eg = self.eng
+        if self.mode in ("retreat", "regen"):
+            act.pop("fire", None)                        # retreat/regen: no shots (sound, and it resets the regen timer)
+            if target is None and eg.aim_yaw is not None:
+                act["aim"] = [round(eg.aim_yaw, 4), 0.0]   # face the last-known threat: rear hits do x1.5
+        if (eg.reload or (ad is not None and ad.reload)) and not act.get("fire"):
+            act["reload"] = True
         g = slots[0]
         if g and g["kind"] == "gun" and target is None and g.get("ammo", 99) < g["stats"].get("mag", 12) * 0.5 and not g.get("reload"):
             act["reload"] = True

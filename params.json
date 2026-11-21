@@ -14,5 +14,87 @@
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
     "enabled": true
+  },
+  "loot": {
+    "enabled": true,
+    "base": {
+      "lightning": 1.0,
+      "laser": 0.9,
+      "mortar": 0.0
+    },
+    "_mortar_note": "mortar base 0 until H-AIM has a ballistic solver: v2 aims flat, so a mortar is only a cook-off liability",
+    "detour_early_m": 150,
+    "detour_mid_m": 60,
+    "detour_late_m": 25
+  },
+  "upgrades": {
+    "enabled": true,
+    "_note": "H-UPG. Partial override of upgrades.DEFAULTS. regen_cycles 0.25 -> ~1.0 only once a retreat-and-heal routine (H-REG) is live. bias is additive ln-power, e.g. {\"sensors\": -0.04}.",
+    "regen_cycles": 0.25,
+    "w_dps": 0.8,
+    "swap_discount": 0.25,
+    "laser_dodge_p": 0.4,
+    "bias": {}
+  },
+  "perception": {
+    "enabled": true,
+    "time_budget_ms": 8.0,
+    "use_sound": true,
+    "use_events": true,
+    "use_beams": true,
+    "use_proj": true,
+    "use_carve": false,
+    "hunt_auto": true,
+    "walk_sigma": 3.5,
+    "vel_tau_s": 2.5,
+    "n_hidden": 32,
+    "n_cloud": 480,
+    "bearing_sigma_scale": 1.0,
+    "bin_slack_m": 6.0,
+    "sound_bg": 0.05,
+    "_note": "H-PER; all knobs and defaults are in percept.DEFAULTS. use_carve is off (neutral in the harness). hunt_auto learns drift toward us from re-acquisition errors (practice squads hunt us) and leaks to 0."
+  },
+  "engage": {
+    "enabled": true,
+    "_note": "H-ENG/H-REG (engage.py). Only the knobs that matter most are listed; every other key defaults inside engage.PARAMS (python3 engage.py --dump-params). R = my effective HP / damage taken to kill the fight; 1.0 is a coin flip, 1.4 about 75-80% to win.",
+    "engage_ratio": 1.4,
+    "disengage_ratio": 1.0,
+    "avoid_ratio": 0.6,
+    "avoid_dist": 100,
+    "retreat_hp_frac": 0.3,
+    "escape_margin": 0.6,
+    "regen_resume_frac": 0.85,
+    "heal_before_roam_frac": 0.6,
+    "auto_regen": true,
+    "early_ratio_add": 0.3,
+    "third_party_dps": 14.0,
+    "join_weight": 0.5
+  },
+  "aim": {
+    "_note": "H-AIM knobs; defaults live in aim.py / aimcore.py, partial overrides allowed. Spec: claude/h-aim-mov-spec.md section 9. enabled=false restores the v2 aim/fire.",
+    "enabled": true,
+    "gun_p_min": 0.3,
+    "gun_max_range_m": 160,
+    "laser_release_p": 0.8,
+    "laser_extra_hold_s": 0.3,
+    "mortar_enabled": false,
+    "reload_idle_s": 1.0,
+    "turn_on_hit": true,
+    "fire_delay_s": 0.05,
+    "lead_order": 1,
+    "man_sigma_scale": 1.0
+  },
+  "move": {
+    "_note": "H-MOV knobs. Strafe holds are in decisions of 0.1 s. strafe_enabled=false turns fight movement off.",
+    "strafe_enabled": true,
+    "strafe_min_range_m": 50,
+    "zone_margin_m": 30,
+    "hold_min_dec": 4,
+    "hold_max_dec": 10,
+    "flip_prob": 1.0,
+    "range_lo_m": 60,
+    "range_hi_m": 140,
+    "dodge_enable": true,
+    "dodge_margin_m": 0.8
   }
 }
