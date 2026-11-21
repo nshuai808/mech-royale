@@ -66,15 +66,21 @@ Decisions worth knowing:
 
 ## 4. Integrated components
 
+All six component branches are merged on branch `v2-integrated`. `bot.py` there is the single arbiter: goal priority is engage retreat/regen > aim strafe > loot goal > zone walk; nav turns the goal into a move (skipped while strafing or regenerating); every component call is try/except; a decision over 35 ms makes the bot skip perception and nav for the next 10 ticks.
+
 | Component | Branch | Hook in `bot.py` | Params section | Status |
 | --- | --- | --- | --- | --- |
-| Loot and weapon choice (H-LOO, H-WPN) | `v2-loot` | `Bot._loot`, goal override, `take`/`drop`, `Bot._fire` | `loot`, `fire` | merged into `v2-loot`; untested against opponents |
-| Navigation and stealth (H-NAV, H-STL) | | | `nav`, `stealth` | |
-| Fight-or-flee and regen (H-ENG, H-REG) | `v2-engage` | `Bot._make_engage`, `Bot._engage`, retreat/regen goal + hold-fire/still in `act()` | `engage` | merged into `v2-engage`; untested against opponents. See `docs/ENGAGE.md` |
-| Zone and supply drops (H-ZON, H-DRP) | | | `zone`, `drops` | |
-| Aiming and movement (H-AIM, H-MOV) | | | `aim`, `move` | |
-| Upgrades (H-UPG) | `v2-upgrades` | `Bot._pick` (every tick; sets only `pick`), one `upg=` field in the existing trace | `upgrades` | merged into `v2-upgrades`; ranking validated in a crude duel sim only, not against opponents. Design: `claude/h-upg.md` |
-| Perception (H-PER) | | | `perception` | |
+| Loot and weapon choice (H-LOO, H-WPN) | `v2-loot` | `Bot._loot` (gets perception `threats=` and nav `path_cost=`), goal, `take`/`drop`, `Bot._fire` fallback | `loot`, `fire` | in `v2-integrated` |
+| Navigation and stealth (H-NAV, H-STL) | `v2-nav` | `Bot._build_nav`, `Bot._nav`; move/boost/jump from the nav hint | `nav`, `stealth` | in `v2-integrated`. Perception is not yet fed to nav `threats=` |
+| Fight-or-flee and regen (H-ENG, H-REG) | `v2-engage` | `Bot._make_engage`, `Bot._engage`; retreat goal, regen stand-still, hold fire, resting aim | `engage` | in `v2-integrated`. See `docs/ENGAGE.md` |
+| Zone and supply drops (H-ZON, H-DRP) | | | `zone`, `drops` | **not built**: default goal is the next circle centre, drops are ignored |
+| Aiming and movement (H-AIM, H-MOV) | `v2-aim` | `Bot._aim`; aim/fire/reload, strafe suggestion | `aim`, `move` | in `v2-integrated`. Mortar lobs stay off (`mortar_enabled` false, loot mortar value 0) |
+| Upgrades (H-UPG) | `v2-upgrades` | `Bot._pick` (only sets `pick`) | `upgrades` | in `v2-integrated` |
+| Perception (H-PER) | `v2-per` | `Bot._perceive` (`self.world`), loot `threats=` hand-off | `perception` | in `v2-integrated`; feeds loot only |
+
+Verification of `v2-integrated` (local): all 7 unit test files pass; `kit/check/check.py` PASS (p99 7.7 ms, max 10.2 ms on a dev machine); replay of the 300 recorded observations shows no `*_error` traces and every component producing decisions; `tools/fuzz.py` 1200 decisions, 0 exceptions, worst 18.7 ms. Not run: the Docker sandbox check. Sim A/B (`tools/sim.py`, gun-only, 12 matches per seed, s.e. about 0.5): `main` (survival bot, real score 2.92) 2.00 / 2.00, `v2-integrated` 1.33 / 1.67. No gain shown; the sim has no loot, upgrades or special weapons, so it cannot credit most of v2. Not proven better than `main` in any test.
+
+`tools/sim.py` and `tools/fuzz.py` were copied from `main`; the sim uses `tools/simnav.py` (main's grid and A*) so it does not clash with v2's `nav.py`.
 
 ## 5. Known conflict: `survival-v1`
 

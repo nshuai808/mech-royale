@@ -62,3 +62,4 @@ See `docs/V2_MERGE.md`: what v2 contains, the integration contract (action-field
 - [ ] Timing guard: fall back to a cheap action if a decision runs long.
 - [ ] Maybe: a crude local simulator (map collision + zone + simple enemies) so play strength can be tested offline.
 - [x] Perception (H-PER) merged on `v2-per`: tracked world model (hidden-enemy particle filters, unseen-mass cloud, sound/event/beam/shell fusion, incoming-shot and laser telegraphs). Feeds loot threats now; `self.world` is there for nav/engage/aim. Unproven in play.
+- [x] `v2-integrated`: all six component branches merged with one arbiter in `bot.py` (see `docs/V2_MERGE.md` section 4). Passes tests, check.py, fuzz. Sim A/B vs `main`: 1.33/1.67 vs 2.00/2.00 (noise-level, no gain shown). **Not submitted.** Missing: zone and supply-drop handling (H-ZON/H-DRP). `main` (survival bot, 2.92) is still the bot to beat.
