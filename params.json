@@ -5,5 +5,10 @@
   },
   "drops": {
     "enabled": true
+  },
+  "roof": {
+    "_note": "roof.py: from start_s, climb a roof inside the next circle and hold it (stand back from the edges)",
+    "enabled": true,
+    "start_s": 100
   }
 }

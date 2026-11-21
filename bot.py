@@ -27,6 +27,7 @@ import traceback
 import botlog
 import drops
 import mechfight as mf
+import roof
 import zone
 from nav import AStar, Map
 
@@ -93,7 +94,16 @@ class Bot:
         self.known = {}                  # enemy id -> (t_seen, x, y)
         self.zone_commit = False         # once a zone run starts, finish it (no flip-flopping)
         self.stuck_at, self.side_sign, self.escape_climb = [], 1, True
-        self.roam, self.roam_t = None, -1.0   # recent stuck spots (t, x, y); sidestep side
+        self.roam, self.roam_t = None, -1.0
+        # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
+        rp = load_params().get("roof") or {}
+        self.roof_start = float(rp.get("start_s", 100))
+        self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
+        if rp.get("enabled", True) and self.map is not None:
+            try:
+                self.rp = roof.RoofPlanner(hello["map"]["dir"], self.map.ground)
+            except Exception:
+                mf.log("roof planner init failed:\n" + traceback.format_exc())   # recent stuck spots (t, x, y); sidestep side
         # zone tracker (H-ZON) and supply-drop planner (H-DRP): any failure = that component has no opinion
         params = load_params()
         self.zt = self.dp = None
@@ -166,6 +176,7 @@ class Bot:
             self.zone_commit = True
         hurry = hurry or self.zone_commit
         close = [e for e in enemies if e["_d"] < 150]
+        on_roof, roof_go = self._roof_state()
         dd = self.dd
         capturing = dd.goal is not None and dd.phase == "capture"
 
@@ -174,6 +185,14 @@ class Bot:
             self.mode, why = "zone", "outside" if not me["in_zone"] else ("critical" if zone_crit else "late")
             move = self._go_circle(self.gx, self.gy, self.gr)
             boost = me["energy"] > 20 and (not me["in_zone"] or hurry)
+        elif on_roof:
+            # up high: stand back from the edges (ground bots can't see us there), shoot whatever we can see
+            sx, sy = self.roof.stand
+            self.mode, why = "roof", f"top {self.roof.top:.0f}"
+            move = None if math.hypot(sx - x, sy - y) < 2.5 else norm(sx - x, sy - y)
+        elif roof_go and self.t < self.climb_until:
+            self.mode, why = "climb", f"to {self.roof.top:.0f}"
+            move = norm(self.roof.stand[0] - x, self.roof.stand[1] - y)
         elif capturing:
             # inside a ring we hold: 4 s alone = 3 cubes + full HP. Stay (and keep shooting) unless it stalls.
             self.mode, why = "drop", dd.reason
@@ -192,6 +211,8 @@ class Bot:
                 why += " close in"
                 move = self._go_point(target["pos"][0], target["pos"][1], 30.0)
                 boost = target["_d"] > 60
+        elif roof_go:
+            move, why = self._roof_travel()
         elif any(e["_d"] < 150 for e in exposed) or (threats and self.t - self.last_hurt_t < 6):
             self.mode = "hide"
             move, why = self._evade(threats)
@@ -230,6 +251,14 @@ class Bot:
         # ---------------------------------------------------------- legs
         if self.mode == "drop" and capturing:
             mv, jump, boost2 = (move if move is not None else (0.0, 0.0)), False, False   # small in-ring steps, no jets
+        elif self.mode == "roof":
+            mv, jump, boost2 = (move if move is not None else (0.0, 0.0)), False, False
+        elif self.mode == "climb":
+            # jump, then jet while airborne until the feet clear the roof edge, pressing toward the stand point
+            mv = move
+            jump = me["grounded"]
+            boost2 = (not me["grounded"]) and z < self.roof.top + 1.5
+            boost = False
         else:
             mv = self._steer(move) if move is not None else (0.0, 0.0)
             mv, jump, boost2 = self._unstick(mv, move is not None)
@@ -347,6 +376,46 @@ class Bot:
                         best = n
         self.target_id = best["id"] if best else None
         return best
+
+    def _roof_state(self):
+        """(on our roof, want to go to it). Picks / drops the roof as the zone moves."""
+        if self.rp is None or self.t < self.roof_start:
+            return False, False
+        safe = lambda px, py: self.in_safe(px, py, ahead=40)
+        if self.roof is not None and (self.zone_key != self.roof_key or not safe(*self.roof.stand)):
+            if not safe(*self.roof.stand):
+                self.roof = None
+            self.roof_key = self.zone_key
+        if self.roof is None:
+            self.roof = self.rp.choose(self.x, self.y, safe, self.zn["next_center"], self.zn["next_radius"])
+            self.roof_key = self.zone_key
+            if self.roof is None:
+                return False, False
+        on = self.z > self.roof.top - 1.5 and self.roof.contains(self.x, self.y)
+        return on, not on
+
+    def _roof_travel(self):
+        """Walk to the wall, wait for enough energy to clear it, then start the climb."""
+        r = self.roof
+        if self.roof_app is None or self.roof_app[0] is not r:
+            # fixed approach point per roof (a moving goal restarts A* every tick), snapped to free ground
+            ax, ay = self.rp.approach(r, self.x, self.y)
+            k = self.map.nearest_free(ax, ay, max_r=6)
+            if k >= 0:
+                ax, ay = self.map.center(k)
+            self.roof_app = (r, ax, ay)
+        _, ax, ay = self.roof_app
+        d = math.hypot(ax - self.x, ay - self.y)
+        if d > 4.0:
+            self.mode = "to_roof"
+            return self._go_point(ax, ay, 3.0), f"{d:.0f} m"
+        need = min(100.0, (r.top - self.z) / 60.0 * 100.0 + 8.0)
+        if self.me["energy"] < need:
+            self.mode = "roof_wait"
+            return None, f"energy {self.me['energy']:.0f}/{need:.0f}"
+        self.mode = "climb"
+        self.climb_until = self.t + 7.0
+        return norm(r.stand[0] - self.x, r.stand[1] - self.y), "go"
 
     def _ttk(self, target):
         """Seconds to kill the target with the gun at its range (reload and accuracy included); None if unknown."""
