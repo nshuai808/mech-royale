@@ -697,6 +697,9 @@ class Bot:
     # ================================================================== movement goals
     def _evade(self, threats):
         m = self.map
+        if not hasattr(self, "evade_unstick"):
+            self.evade_unstick = bool((load_params().get("evade_unstick") or {}).get("enabled", False))
+        slide = self.evade_unstick and self.mode == "evade" and m is not None
         if m is not None and (self.cover is None or self.t - self.cover_t > 0.6):
             ok = lambda px, py: self.in_safe(px, py)
             self.cover = m.find_cover(self.x, self.y, threats[:4], ok, radii=self.evade_fix["radii"] if self.evade_fix["enabled"] else (8, 16, 26, 40), dirs=16,
@@ -706,13 +709,32 @@ class Bot:
             cx, cy, _ = self.cover
             if math.hypot(cx - self.x, cy - self.y) < 2.5:
                 return None, "in cover"
-            return norm(cx - self.x, cy - self.y), "to cover"
+            move = norm(cx - self.x, cy - self.y)
+            return (self._evade_slide(move) if slide else move), "to cover"
         # no cover: away from the threats, pulled toward the zone center
         ax = sum(self.x - tx for tx, _ in threats)
         ay = sum(self.y - ty for _, ty in threats)
         ux, uy = norm(ax, ay)
         zx, zy = norm(self.gx - self.x, self.gy - self.y)
-        return norm(ux + zx * 0.6, uy + zy * 0.6), "away"
+        move = norm(ux + zx * 0.6, uy + zy * 0.6)
+        return (self._evade_slide(move) if slide else move), "away"
+
+    def _evade_slide(self, move):
+        """Pick a nearby heading that clears the mech's footprint."""
+        ux, uy = move
+        if not (ux or uy):
+            return move
+        m, x, y = self.map, self.x, self.y
+        radius = self.stats.get("radius", self.cfg["mech"].get("radius", 2.5))
+        offsets = ((0, 0), (radius, 0), (-radius, 0), (0, radius), (0, -radius))
+        base = math.atan2(uy, ux)
+        # Try the smallest deviations first, taking the coverward side of the wall.
+        for step in (0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8):
+            ang = base + step * (math.pi / 12)
+            dx, dy = math.cos(ang), math.sin(ang)
+            if all(m.ray_len(x + ox, y + oy, dx, dy, 7.0) >= 6.0 for ox, oy in offsets):
+                return (dx, dy) if step else move
+        return move
 
     def _fight_move(self, tgt):
         tx, ty = tgt["pos"][0], tgt["pos"][1]
