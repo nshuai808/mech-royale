@@ -35,7 +35,8 @@ UPGRADE_PREF = ["plating", "armor", "nanites", "laser_damage", "laser_charge", "
                 "gun_damage", "gun_rate", "servos", "sensors", "gyros", "jets", "capacitor", "reactor",
                 "gun_mag", "gun_velocity", "lightning_range", "mortar_reload", "lightning_chain",
                 "mortar_velocity", "mortar_splash", "laser_pierce"]
-WEAPON_RANK = {"laser": 3, "lightning": 2, "mortar": 1, "gun": 0}
+WEAPON_RANK = {"lightning": 3, "laser": 2, "mortar": 1, "gun": 0}   # lightning: 240 dps, can't miss inside 45 m
+SPECIAL = ("laser", "lightning")
 BUDGET_S = 0.028  # our own soft deadline per decision; the server's is 50 ms
 
 
@@ -437,10 +438,12 @@ class Bot:
             if p["kind"] in have or abs(p["pos"][2] - self.z) > 3.5:
                 continue
             gain = WEAPON_RANK[p["kind"]] - worst
-            if gain <= 0:
+            if gain <= 0 and not self._gun_swap(p["kind"]):
                 continue
+            gain = max(gain, 1)
             d = math.dist(p["pos"][:2], (x, y))
-            if d < 70 and self.in_safe(p["pos"][0], p["pos"][1]):
+            reach = 150 if not (have & set(SPECIAL)) else 90
+            if d < reach and self.in_safe(p["pos"][0], p["pos"][1]):
                 s = gain * 30 - d
                 if s > best_s:
                     best, best_s = (p["pos"][0], p["pos"][1], f"get {p['kind']}"), s
@@ -448,9 +451,34 @@ class Bot:
             return best
         for c in obs.get("cubes", []):
             d = math.dist(c["pos"][:2], (x, y))
-            if d < 50 and abs(c["pos"][2] - self.z) < 3.5 and self.in_safe(c["pos"][0], c["pos"][1]):
+            if d < 80 and abs(c["pos"][2] - self.z) < 3.5 and self.in_safe(c["pos"][0], c["pos"][1]):
                 return (c["pos"][0], c["pos"][1], "get cube")
+        cr = self._crate(obs, 120)
+        if cr is not None:
+            d = math.dist(cr["pos"][:2], (x, y))
+            if d > 35:
+                return (cr["pos"][0], cr["pos"][1], "crate")
         return None
+
+    def _crate(self, obs, max_d):
+        """Nearest crate on our level, inside the safe zone, worth breaking (cube + 50% weapon); None if none."""
+        if self.t > 300 or self.me["hp"] < 0.7 * self.me["max_hp"]:
+            return None
+        best, best_d = None, max_d
+        for c in obs.get("crates", []):
+            if abs(c["pos"][2] - self.z) > 3.5 or not self.in_safe(c["pos"][0], c["pos"][1]):
+                continue
+            d = math.dist(c["pos"][:2], (self.x, self.y))
+            if d < best_d:
+                best, best_d = c, d
+        return best
+
+    def _gun_swap(self, kind):
+        """True if a pickup of this kind should replace the gun in slot 0 (we already hold another special)."""
+        slots = self.me["weapons"]
+        g, s1 = slots[0], slots[1] if len(slots) > 1 else None
+        return (kind in SPECIAL and g is not None and g["kind"] == "gun" and s1 is not None
+                and s1["kind"] != kind and s1["kind"] in SPECIAL + ("mortar",))
 
     def _take(self, obs):
         slots = self.me["weapons"]
@@ -463,7 +491,12 @@ class Bot:
             if slots[1] is None:
                 return {"take": p["id"]}
             if WEAPON_RANK[p["kind"]] > WEAPON_RANK[slots[1]["kind"]] and not slots[1].get("charge"):
+                # a better special: if the gun can go instead, keep both specials
+                if self._gun_swap(p["kind"]) and slots[1]["kind"] in SPECIAL:
+                    return {"take": p["id"], "drop": 0}
                 return {"take": p["id"], "drop": 1}
+            if self._gun_swap(p["kind"]):
+                return {"take": p["id"], "drop": 0}
         return None
 
     def _pick_upgrade(self, offer):
@@ -569,6 +602,11 @@ class Bot:
         aim = None
         if target is not None:
             aim, fire = self._engage(target, slots)
+        if aim is None and target is None and self.mode in ("loot", "hold", "move"):
+            cr = self._crate(obs, 60)
+            if cr is not None and (self.map is None or self.map.los(self.x, self.y, cr["pos"][0], cr["pos"][1])):
+                fake = {"kind": "crate", "pos": cr["pos"], "vel": (0, 0, 0)}
+                aim, fire = self._engage(fake, slots)
         if aim is None and self.mode in ("evade", "hide"):
             aim = self._threat_aim()     # rear hits do x1.5: keep our front to whoever we are running from
         if aim is None:
