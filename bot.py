@@ -309,10 +309,12 @@ class Bot:
     def _choose_target(self, enemies, npcs):
         best, best_s = None, -1e9
         now = self.t
+        laser = any(w and w["kind"] == "laser" for w in self.me["weapons"])
+        far = 250 if laser else 130          # laser: hitscan 315 dmg to 280 m, snipe the hunter on its way in
         for e in enemies:
             hit = self.attackers.get(e["id"])
             shooting_us = hit and now - hit[0] < 4
-            if e["_d"] > 230 or (e["_d"] > 130 and not shooting_us):
+            if e["_d"] > max(230, far) or (e["_d"] > far and not shooting_us):
                 continue  # don't start long-range fights: they only draw the squad in
             s = -e["_d"] * 0.05
             if shooting_us:
@@ -377,8 +379,6 @@ class Bot:
         return False
 
     def _should_evade(self, close, hp_frac, recently_hurt, target):
-        if len(close) >= 2 and hp_frac < 0.85:
-            return True
         if len(close) >= 3:
             return True
         if target is not None and target["kind"] == "mech" and "hp" in target and target.get("max_hp"):
