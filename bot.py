@@ -1151,7 +1151,16 @@ class Bot:
                 primary = lead
             tol = 0.035 + 2.5 / max(d, 1)
             if d <= gun["stats"].get("range", 230) and err(*lead) < tol and gun.get("ammo", 1) > 0 and not gun.get("reload"):
-                fire[idx["gun"]] = True
+                if not hasattr(self, "gun_aim_on"):
+                    self.gun_aim_on = bool((load_params().get("gun_aim") or {}).get("enabled", False))
+                m = self.map
+                # The sight grid describes ground-level cover. Preserve shots from
+                # roofs or jets and lead shots that can travel around a corner.
+                covered = (self.gun_aim_on and m is not None and tgt["kind"] == "mech"
+                           and not m.los(mx, my, lx, ly) and not m.los(mx, my, tx, ty)
+                           and abs(self.z - m.ground(mx, my)) < 2.0
+                           and abs(tgt["pos"][2] - m.ground(tx, ty)) < 2.0)
+                fire[idx["gun"]] = not covered
         return primary, fire
 
     def _mortar_lead(self, tx, ty, tvx, tvy, d, dz, st):
