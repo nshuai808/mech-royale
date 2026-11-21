@@ -185,6 +185,12 @@ class Bot:
         elif target is not None:
             self.mode, why = "fight", f"#{target['id']}"
             move = self._fight_move(target)
+            lt_held = any(w and w["kind"] == "lightning" for w in me["weapons"])
+            if (lt_held and target["kind"] == "mech" and target["_d"] > 40 and hp_frac > 0.5
+                    and len(exposed) <= 1 and me["energy"] > 35):
+                why += " close in"
+                move = self._go_point(target["pos"][0], target["pos"][1], 30.0)
+                boost = target["_d"] > 60
         elif any(e["_d"] < 150 for e in exposed) or (threats and self.t - self.last_hurt_t < 6):
             self.mode = "hide"
             move, why = self._evade(threats)
@@ -336,7 +342,13 @@ class Bot:
         mag, cd, rl = g.get("mag", 12), g.get("cooldown", 0.24), g.get("reload", 2.4)
         d = target["_d"]
         acc = 0.66 if d < 80 else (0.5 if d < 150 else 0.3)
-        dps = g.get("damage", 45) / cd * (mag * cd) / (mag * cd + rl) * acc
+        kinds = {w["kind"] for w in self.me["weapons"] if w}
+        dps = g.get("damage", 45) / cd * (mag * cd) / (mag * cd + rl) * acc if "gun" in kinds else 0.0
+        lt, la = self.w["lightning"], self.w["laser"]
+        if "lightning" in kinds and d < lt.get("range", 45):
+            dps = max(dps, lt["damage"] / lt["cooldown"] * 0.9)
+        if "laser" in kinds and d < la.get("range", 280):
+            dps = max(dps, la["damage"] / (la["charge"] + la["cooldown"]) * (0.85 if d < 150 else 0.6))
         return target["hp"] / max(dps, 1.0)
 
     def _third_party(self, target, enemies, exposed):
@@ -442,7 +454,7 @@ class Bot:
                 continue
             gain = max(gain, 1)
             d = math.dist(p["pos"][:2], (x, y))
-            reach = 150 if not (have & set(SPECIAL)) else 90
+            reach = (250 if self.t < 120 else 150) if not (have & set(SPECIAL)) else 90
             if d < reach and self.in_safe(p["pos"][0], p["pos"][1]):
                 s = gain * 30 - d
                 if s > best_s:
@@ -453,7 +465,7 @@ class Bot:
             d = math.dist(c["pos"][:2], (x, y))
             if d < 80 and abs(c["pos"][2] - self.z) < 3.5 and self.in_safe(c["pos"][0], c["pos"][1]):
                 return (c["pos"][0], c["pos"][1], "get cube")
-        cr = self._crate(obs, 120)
+        cr = self._crate(obs, 200 if self.t < 120 and not (have & set(SPECIAL)) else 120)
         if cr is not None:
             d = math.dist(cr["pos"][:2], (x, y))
             if d > 35:
@@ -501,7 +513,10 @@ class Bot:
 
     def _pick_upgrade(self, offer):
         ids = [c["id"] for c in offer["choices"]]
-        for u in UPGRADE_PREF:
+        kinds = [w["kind"] for w in self.me["weapons"] if w]
+        mine = [u for u in ids if any(u.startswith(k + "_") for k in kinds)]
+        pref = UPGRADE_PREF[:3] + sorted(mine, key=lambda u: UPGRADE_PREF.index(u) if u in UPGRADE_PREF else 99) + UPGRADE_PREF[3:]
+        for u in pref:
             if u in ids:
                 return ids.index(u)
         return 0
