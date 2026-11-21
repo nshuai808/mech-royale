@@ -97,6 +97,8 @@ class Bot:
         self.roam, self.roam_t = None, -1.0
         # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
         self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
+        # docs/stuck_pocket.md: escalating unstick (climb toward the goal, slide one side, then a long jet climb)
+        self.unstick_v2 = bool((load_params().get("unstick") or {}).get("v2", False))
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -268,7 +270,10 @@ class Bot:
             boost = False
         else:
             mv = self._steer(move) if move is not None else (0.0, 0.0)
-            mv, jump, boost2 = self._unstick(mv, move is not None)
+            if self.unstick_v2:
+                mv, jump, boost2 = self._unstick_v2(mv, move)
+            else:
+                mv, jump, boost2 = self._unstick(mv, move is not None)
         if move is not None and self.mode in ("move", "loot", "heal", "drop") and not boost and not boost2:
             pass  # walking at full speed: faster than sneaking, and the squad hunts us anyway
         act["move"] = [round(mv[0], 3), round(mv[1], 3)]
@@ -695,6 +700,40 @@ class Bot:
                 self.path, self.job = None, None
                 self.hist.clear()
                 return self.escape_dir, not again, False
+        return mv, False, False
+
+    def _unstick_v2(self, mv, want):
+        """Like _unstick, but escalates when we keep getting stuck at the same spot (docs/stuck_pocket.md):
+        even-numbered attempts there climb (jump + jets) toward where we actually want to go (unsteered),
+        each one longer, up to the energy we have; odd-numbered ones slide along the wall, the same side twice
+        in a row, so the slide covers ground instead of undoing the last one."""
+        t, me = self.t, self.me
+        if t < self.escape_until:
+            if not self.escape_climb:
+                return self.escape_dir, False, False
+            return self.escape_dir, me["grounded"], (not me["grounded"]) and me["energy"] > 8
+        if want is not None and len(self.hist) >= 16 and (mv[0] or mv[1]):
+            t_old, x_old, y_old = self.hist[-16]
+            if t - t_old >= 1.4 and math.hypot(self.x - x_old, self.y - y_old) < 2.0:
+                here = [(st, sx, sy) for st, sx, sy in self.stuck_at
+                        if t - st < 20.0 and math.hypot(self.x - sx, self.y - sy) < 6.0]
+                n = len(here)
+                self.stuck_at = [(st, sx, sy) for st, sx, sy in self.stuck_at if t - st < 20.0] + [(t, self.x, self.y)]
+                wx, wy = norm(want[0], want[1])
+                if not (wx or wy):
+                    wx, wy = mv
+                energy = me["energy"]
+                if n % 2 == 0 and energy > 35:
+                    self.escape_dir, self.escape_climb = (wx, wy), True
+                    dur = 1.2 if n == 0 else min(4.5, 0.6 + energy / 15.0)   # jets drain 15/s: use most of it
+                else:
+                    side = self.side_sign * (1 if (n // 4) % 2 == 0 else -1)   # n = 1, 3: one side; 5, 7: the other
+                    self.escape_dir, self.escape_climb = (-wy * side, wx * side), False
+                    dur = 2.0
+                self.escape_until = t + dur
+                self.path, self.job = None, None
+                self.hist.clear()
+                return self.escape_dir, self.escape_climb, False
         return mv, False, False
 
     # ================================================================== aim and weapons

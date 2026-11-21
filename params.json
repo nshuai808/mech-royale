@@ -14,5 +14,9 @@
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
     "enabled": true
+  },
+  "unstick": {
+    "_note": "docs/stuck_pocket.md: escalating unstick (repeat stuck at one spot = climb toward the goal / slide one side), off = old _unstick",
+    "v2": false
   }
 }
