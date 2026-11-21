@@ -36,6 +36,29 @@ Paste the brief for one session into one chat. Read `STRATEGY.md` for the backgr
 - **Also check:** `git ls-files` for stale unused code that the Docker image copies (roof planner, tests) and confirm nothing imports a missing module in the image.
 - **Report:** the numbers and any failure. Fix only packaging problems; do not change behavior.
 
+### Session C results (2026-11-21): done
+- **Branch `timing-check`, commit `79c0978`.** Full report: `docs/timing_check.md` on that branch.
+- **No Docker on this machine** (none on Windows or in WSL; installing it needs sudo). Stand-in used: the image's exact files
+  (`git archive` + `.dockerignore`) in WSL, one core (`taskset`), bot folder and arena read-only, memory cap, clean env.
+  Also run on Windows Python 3.13 (the image is 3.13.18). **Still to do once:** the real Docker commands from `README.md`.
+- **Numbers:** hello 0.6 s on one core (1.2 s on half a core; budget 20 s). Kit stream p99 8 ms, max 11 ms; on half a core
+  p99 15 to 18 ms, max 23 ms. Peak RSS 25 MB. No writes. Repo 2.2 MB (330 KB packed). check PASS, fuzz 0 exceptions, tests pass.
+- **Packaging fix:** `test_*.py` added to `.dockerignore` (copied, never imported). Every import in the image is satisfied
+  (`roof.py` is still needed: imported at top level).
+- **Risk found:** in long sim matches (200 s and up), roam-mode A* to unreachable random points ran at its ~20 ms cap for up to
+  11 s at a time (p90 21 ms, max 30 ms on one core; 6 ticks over 35 ms on half a core; one 48.6 ms tick on Windows).
+
+### Follow-up: roam A* fix, branch `roam-astar`, commit `edc54eb` (not submitted)
+- **Flag:** `params.json` `roam_fix.enabled` (on in the branch; off = `main`).
+- **Touches:** roam point choice in `act()` (try up to 6 points, keep one with free nav ground within 4 m), `_go_point`
+  (after a failed A*, don't restart it for the same goal for 3 s, and drop a search for another goal), new `Bot._goal_key`.
+- **Timing** (two long sim `--ffa` matches, flag off -> on): ticks over 15 ms 327 -> 4 and 702 -> 84, max 48.6 -> 32 ms.
+  Of the 84 slow ticks left, 74 are in `hunt` mode, and none came near 35 ms.
+- **Sim A/B** (practice sim, 16 matches, off vs on): seed 1 1.75 vs 1.69, seed 2 1.69 vs 1.75; kills 53 vs 53; deaths under
+  30 s 9/32 vs 9/32. Neutral, as expected: it is a timing safeguard, not a play change.
+- check PASS, fuzz 0 exceptions (worst 12 ms), zone and drop tests pass.
+- **Not verified:** a real practice score (practice probably can't show it), real Docker, the scorer's CPU speed.
+
 ## Session D: Loot and weapon choice
 - **Branch:** `step3-loot`.
 - **Problem:** loot gave the biggest real gains (2.90 to 3.40 to 3.56), so this layer pays. Remaining gaps: weapon choice ignores the counter triangle (laser beats mortar, mortar beats lightning, lightning beats laser), mortar is rank 1 of 4 and rarely taken, the upgrade list is fixed, and there is no rule for protecting a held special.
