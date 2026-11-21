@@ -51,20 +51,20 @@
   },
   "mortar_lead": {
     "_note": "lead mortar shells by the target's velocity times the shell flight time (Bot._mortar_lead); off = aim at the target",
-    "enabled": true,
+    "enabled": false,
     "lead_frac": 0.8,
     "max_lead_m": 40
   },
   "early_evade": {
     "_note": "Step 2: (any aggro setting) break off to cover when >= `attackers` different mechs hit us within `window_s` and HP < `hp_frac`. enabled=false restores main.",
-    "enabled": true,
+    "enabled": false,
     "attackers": 2,
     "hp_frac": 0.6,
     "window_s": 2.0
   },
   "dodge": {
     "_note": "Step 1: sidestep incoming gun bullets and mortar shells; add beam shooters to known enemy positions. enabled=false restores main.",
-    "enabled": true,
+    "enabled": false,
     "bullets": true,
     "mortars": true,
     "beams": true,

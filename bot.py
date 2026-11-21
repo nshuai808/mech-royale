@@ -363,7 +363,6 @@ class Bot:
                 mv, jump, boost2 = self._unstick_v2(mv, move)
             else:
                 mv, jump, boost2 = self._unstick(mv, move is not None)
-            mv, jump, boost2 = self._unstick(mv, move is not None)
             if self.dodge_on and self.t >= self.escape_until:
                 dv, dwhy = self._dodge(obs)
                 if dv is not None:
