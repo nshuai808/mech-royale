@@ -80,7 +80,7 @@
     "hp_frac": 1.01
   },
   "evade_unstick": {
-    "enabled": false
+    "enabled": true
   },
   "evade_fix": {
     "_note": "once evade starts, stay in it commit_s (unless the target dies within unseen_hit.finish_s); cover search out to the last of radii. enabled=false restores the branch base.",
