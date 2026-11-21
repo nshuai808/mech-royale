@@ -72,7 +72,7 @@ Decisions worth knowing:
 | Fight-or-flee and regen (H-ENG, H-REG) | | | `engage` | |
 | Zone and supply drops (H-ZON, H-DRP) | | | `zone`, `drops` | |
 | Aiming and movement (H-AIM, H-MOV) | | | `aim`, `move` | |
-| Upgrades (H-UPG) | | | `upgrades` | |
+| Upgrades (H-UPG) | `v2-upgrades` | `Bot._pick` (every tick; sets only `pick`), one `upg=` field in the existing trace | `upgrades` | merged into `v2-upgrades`; ranking validated in a crude duel sim only, not against opponents. Design: `claude/h-upg.md` |
 | Perception (H-PER) | | | `perception` | |
 
 ## 5. Known conflict: `survival-v1`

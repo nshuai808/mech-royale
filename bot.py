@@ -6,6 +6,7 @@ import os
 import botlog
 import loot
 import mechfight as mf
+import upgrades
 
 
 def load_params():
@@ -27,6 +28,12 @@ class Bot:
         self.reach = cfg["loot"]["pickup_radius"]
         self.planner = loot.LootPlanner(cfg, loot.LootParams.from_dict(self.params.get("loot")))
         self.special_margin = self.params.get("fire", {}).get("special_margin", 0.9)
+        self.upg = None
+        try:
+            if self.params.get("upgrades", {}).get("enabled", True):
+                self.upg = upgrades.UpgradePolicy(cfg, self.params.get("upgrades"))
+        except Exception as e:  # no policy = v1 behaviour (pick 0)
+            botlog.trace(0, mode="upgrades_error", err=repr(e))
 
     def _loot(self, obs):
         """Loot decision; any failure falls back to v1 behaviour (no loot) instead of crashing."""
@@ -35,6 +42,15 @@ class Bot:
         except Exception as e:
             botlog.trace(obs["tick"], mode="loot_error", err=repr(e))
             return loot.Decision(reason="error")
+
+    def _pick(self, obs):
+        """Upgrade pick (H-UPG). Runs every tick (it tracks combat lulls); any failure means the v1 default, pick 0."""
+        try:
+            if self.upg is not None:
+                return self.upg.pick(obs)
+        except Exception as e:
+            botlog.trace(obs["tick"], mode="upgrades_error", err=repr(e))
+        return 0 if obs.get("offer") else None
 
     def _fire(self, me, dist):
         """fire[i] per slot: the gun always; the special only inside its range. Mortar stays off until
@@ -55,8 +71,9 @@ class Bot:
         x, y, z = me["pos"]
         zone_goal = obs["zone"]["next_center"]
         act: mf.Action = {"tick": obs["tick"]}
-        if obs["offer"]:
-            act["pick"] = 0
+        pick = self._pick(obs)
+        if pick is not None:
+            act["pick"] = pick
 
         d = self._loot(obs)
         if d.take is not None:
@@ -85,7 +102,8 @@ class Bot:
         mode = "fight" if enemies else ("loot" if d.goal is not None else "to_zone")
         botlog.trace(obs["tick"], mode=mode, target=enemies[0]["id"] if enemies else None, in_zone=me["in_zone"],
                      loot=d.reason, loot_kind=d.kind, loot_u=round(d.utility, 2),
-                     weapons=[w["kind"] if w else None for w in me["weapons"]])
+                     weapons=[w["kind"] if w else None for w in me["weapons"]],
+                     upg=self.upg.debug_label() if self.upg is not None else "")
         return act
 
 

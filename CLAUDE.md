@@ -55,7 +55,8 @@ See `docs/V2_MERGE.md`: what v2 contains, the integration contract (action-field
 - [ ] Submit the unmodified starter once to confirm the pipeline (expect ~1.15).
 - [ ] Survival core: zone-aware movement with margin, cover / line-of-sight breaking, retreat + regen when hurt.
 - [x] Loot + weapon pick v1 (branch `v2-loot`): `loot.py`, knobs in `params.json`, straight-line walk to loot goal (no nav yet). Mortar base value is 0 until a ballistic aim solver exists.
-- [ ] Charge-laser handling, mortar lobs, offers and upgrades.
+- [x] Upgrade policy (branch `v2-upgrades`): `upgrades.py`, `test_upgrades.py`, knobs in `params.json` `upgrades`. Ranks the 3 offered upgrades by marginal combat-power gain (gun_mag, plating, then weapon upgrades first; nanites mid-tier until a retreat-and-heal routine exists, then raise `regen_cycles`). Sim-validated only.
+- [ ] Charge-laser handling, mortar lobs.
 - [ ] Squad handling: avoid being the weakest visible target; third-party instead of first contact.
 - [ ] Timing guard: fall back to a cheap action if a decision runs long.
 - [ ] Maybe: a crude local simulator (map collision + zone + simple enemies) so play strength can be tested offline.
