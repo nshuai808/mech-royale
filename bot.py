@@ -40,7 +40,7 @@ class Bot:
     def _loot(self, obs):
         """Loot decision; any failure falls back to v1 behaviour (no loot) instead of crashing."""
         try:
-            return self.planner.step(obs)
+            return self.planner.step(obs, path_cost=self.nav.path_cost if self.nav else None)
         except Exception as e:
             botlog.trace(obs["tick"], mode="loot_error", err=repr(e))
             return loot.Decision(reason="error")
