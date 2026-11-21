@@ -231,8 +231,10 @@ class Bot:
 
         if not hasattr(self, "heal_gate_hp"):
             heal_gate = load_params().get("heal_gate") or {}
-            self.heal_gate_hp = heal_gate.get("hp_frac", 0.7) if heal_gate.get("enabled") else 0.0
-        healing = hp_frac < self.heal_gate_hp
+            self.heal_gate_hp = heal_gate.get("hp_frac", 0.7) if heal_gate.get("enabled") else None
+            self.heal_gate_all = heal_gate.get("scope", "fights") == "all"
+        healing = self.heal_gate_hp is not None and hp_frac < self.heal_gate_hp
+        healing_fights = healing and not self.heal_gate_all
         target = self._choose_target(enemies, npcs, healing)
         # everyone we know about nearby, including ones that just ducked out of view
         threats = [(kx, ky) for (_, kx, ky) in self.known.values() if math.hypot(kx - x, ky - y) < 220]
@@ -267,6 +269,9 @@ class Bot:
         dd = self.dd
         capturing = dd.goal is not None and dd.phase == "capture"
         late_on = self.lp is not None and self.lp.active(self.zn)
+        heal_threats = []
+        if healing_fights:
+            heal_threats = [(tx, ty) for tx, ty in threats if m is None or m.los(x, y, tx, ty)]
 
         # ---------------------------------------------------------- modes
         if not me["in_zone"] or hurry:
@@ -296,15 +301,16 @@ class Bot:
             self.mode = "evade"
             move, why = self._evade(threats)
             boost = me["energy"] > 25 and (hp_frac < 0.6 or len(exposed) >= 2)
-        elif healing:
+        elif healing and (self.heal_gate_all or heal_threats):
             self.mode, why = "heal_gate", "hold for regen"
             if need_zone:
                 move, why = self._go_circle(self.gx, self.gy, self.gr), "into next circle"
             else:
-                visible_threats = [(tx, ty) for tx, ty in threats if m is None or m.los(x, y, tx, ty)]
-                if visible_threats:
-                    move, why = self._evade(visible_threats)
-        elif target is not None:
+                if self.heal_gate_all:
+                    heal_threats = [(tx, ty) for tx, ty in threats if m is None or m.los(x, y, tx, ty)]
+                if heal_threats:
+                    move, why = self._evade(heal_threats)
+        elif target is not None and not healing_fights:
             self.mode, why = "fight", f"#{target['id']}"
             move = self._fight_move(target)
             lt_held = any(w and w["kind"] == "lightning" for w in me["weapons"])
@@ -315,12 +321,13 @@ class Bot:
                 boost = target["_d"] > 60
         elif roof_go:
             move, why = self._roof_travel()
-        elif self.aggro and self.known and hp_frac > 0.4 and not (late_on and self.lp.p.no_hunt):
+        elif not healing_fights and self.aggro and self.known and hp_frac > 0.4 and not (late_on and self.lp.p.no_hunt):
             # nobody in sight but we know where they are: go get them (the practice bots are weak)
             kid, (kt, kx, ky) = min(self.known.items(), key=lambda kv: math.hypot(kv[1][1] - x, kv[1][2] - y))
             self.mode, why = "hunt", f"#{kid}"
             move = self._go_point(kx, ky, 20.0)
-        elif any(e["_d"] < 150 for e in exposed) or (threats and self.t - self.last_hurt_t < 6):
+        elif not healing_fights and (any(e["_d"] < 150 for e in exposed)
+                                    or (threats and self.t - self.last_hurt_t < 6)):
             self.mode = "hide"
             move, why = self._evade(threats)
         else:
@@ -353,7 +360,7 @@ class Bot:
                 else:
                     self.mode, why = "late", f"hold hp {hp_frac:.0%}"
                     move = None
-            elif hp_frac < 0.92 and self.t - max(self.last_hurt_t, self.last_dealt_t) < 30:
+            elif not healing_fights and hp_frac < 0.92 and self.t - max(self.last_hurt_t, self.last_dealt_t) < 30:
                 self.mode, why = "heal", f"hp {hp_frac:.0%}"
                 move = None if not need_zone else self._go_circle(self.gx, self.gy, self.gr)
             elif need_zone:
@@ -412,7 +419,7 @@ class Bot:
             act["jump"] = True
 
         # ---------------------------------------------------------- torso and weapons
-        self._aim_and_fire(act, obs, target, mv)
+        self._aim_and_fire(act, obs, target, mv, skip_crates=healing_fights)
         loot_take = self._take(obs)
         if loot_take:
             act.update(loot_take)
@@ -1058,14 +1065,14 @@ class Bot:
         return mv, False, False
 
     # ================================================================== aim and weapons
-    def _aim_and_fire(self, act, obs, target, mv):
+    def _aim_and_fire(self, act, obs, target, mv, skip_crates=False):
         me = self.me
         slots = me["weapons"]
         fire = [False, False]
         aim = None
         if target is not None:
             aim, fire = self._engage(target, slots)
-        if aim is None and target is None and self.mode in ("loot", "hold", "move", "roam"):
+        if not skip_crates and aim is None and target is None and self.mode in ("loot", "hold", "move", "roam"):
             cr = self._crate(obs, 60)
             if cr is not None and (self.map is None or self.map.los(self.x, self.y, cr["pos"][0], cr["pos"][1])):
                 fake = {"kind": "crate", "pos": cr["pos"], "vel": (0, 0, 0)}
