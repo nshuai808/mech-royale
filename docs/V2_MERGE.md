@@ -47,6 +47,7 @@ Decisions worth knowing:
 - Perception -> loot: pass a list of `loot.Threat(id, dist, kinds, weight)` as `threats=`; otherwise loot builds one from `obs`.
 - Navigation -> loot: pass `path_cost(src_xyz, dst_xyz) -> (length_m or None, exposure 0..1)` as `path_cost=`; `None` means unreachable.
 - Aiming / engage -> loot: `loot.slot_of(weapons, kind)` and `loot.preferred_range(kind, cfg)`.
+- Engage -> arbiter: `engage.Decision` has `mode` (`neutral|engage|retreat|regen`), `goal` (retreat refuge), `speed`, `boost`, `hold_fire`, `aim_yaw`, `reload`. `bot.py` gives `retreat`/`regen` top goal priority; Navigation should path to `Decision.goal`; Zone/Drops may preempt `regen` (a capturable drop heals faster than waiting).
 - Engage -> loot: `planner.equip_delay(kind)` if timing a swap. Loot already refuses far pickups during a fight (`fight_pickup_radius_m`).
 
 **Params.** All knobs live in `params.json`, one section per component (`loot`, `nav`, `engage`, `fire`, ...). Unknown keys are ignored, partial overrides are allowed, defaults live in the module's dataclass. Keep keys `snake_case`.
@@ -69,7 +70,7 @@ Decisions worth knowing:
 | --- | --- | --- | --- | --- |
 | Loot and weapon choice (H-LOO, H-WPN) | `v2-loot` | `Bot._loot`, goal override, `take`/`drop`, `Bot._fire` | `loot`, `fire` | merged into `v2-loot`; untested against opponents |
 | Navigation and stealth (H-NAV, H-STL) | | | `nav`, `stealth` | |
-| Fight-or-flee and regen (H-ENG, H-REG) | | | `engage` | |
+| Fight-or-flee and regen (H-ENG, H-REG) | `v2-engage` | `Bot._make_engage`, `Bot._engage`, retreat/regen goal + hold-fire/still in `act()` | `engage` | merged into `v2-engage`; untested against opponents. See `docs/ENGAGE.md` |
 | Zone and supply drops (H-ZON, H-DRP) | | | `zone`, `drops` | |
 | Aiming and movement (H-AIM, H-MOV) | | | `aim`, `move` | |
 | Upgrades (H-UPG) | | | `upgrades` | |

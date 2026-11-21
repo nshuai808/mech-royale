@@ -55,6 +55,7 @@ See `docs/V2_MERGE.md`: what v2 contains, the integration contract (action-field
 - [ ] Submit the unmodified starter once to confirm the pipeline (expect ~1.15).
 - [ ] Survival core: zone-aware movement with margin, cover / line-of-sight breaking, retreat + regen when hurt.
 - [x] Loot + weapon pick v1 (branch `v2-loot`): `loot.py`, knobs in `params.json`, straight-line walk to loot goal (no nav yet). Mortar base value is 0 until a ballistic aim solver exists.
+- [x] Fight-or-flee + retreat/regen v1 (branch `v2-engage`): `engage.py`, `test_engage.py`, knobs in `params.json["engage"]`, `docs/ENGAGE.md`. Retreat/regen only; `engage` mode does not steer or fire yet.
 - [ ] Charge-laser handling, mortar lobs, offers and upgrades.
 - [ ] Squad handling: avoid being the weakest visible target; third-party instead of first contact.
 - [ ] Timing guard: fall back to a cheap action if a decision runs long.

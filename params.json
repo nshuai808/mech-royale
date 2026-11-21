@@ -8,6 +8,22 @@
     "detour_mid_m": 60,
     "detour_late_m": 25
   },
+  "engage": {
+    "enabled": true,
+    "_note": "H-ENG/H-REG (engage.py). Only the knobs that matter most are listed; every other key defaults inside engage.PARAMS (python3 engage.py --dump-params). R = my effective HP / damage taken to kill the fight; 1.0 is a coin flip, 1.4 about 75-80% to win.",
+    "engage_ratio": 1.40,
+    "disengage_ratio": 1.00,
+    "avoid_ratio": 0.60,
+    "avoid_dist": 100,
+    "retreat_hp_frac": 0.30,
+    "escape_margin": 0.60,
+    "regen_resume_frac": 0.85,
+    "heal_before_roam_frac": 0.60,
+    "auto_regen": true,
+    "early_ratio_add": 0.30,
+    "third_party_dps": 14.0,
+    "join_weight": 0.5
+  },
   "fire": {
     "special_margin": 0.9,
     "_note": "fire the slot-1 special only inside this fraction of its range"
