@@ -130,6 +130,11 @@ class Bot:
         self.guard = bool(gp.get("enabled", False))
         self.guard_r = float(gp.get("enemy_r", 150))       # a visible enemy mech this close = in a fight
         self.guard_s = float(gp.get("quiet_s", 2.5))       # ...or we took weapon damage this recently
+        # mortar lead (params.json "mortar_lead"): aim the shell where the target will be when it lands
+        mp = load_params().get("mortar_lead") or {}
+        self.mortar_lead = bool(mp.get("enabled", False))
+        self.mlead_k = float(mp.get("lead_frac", 0.8))     # share of the straight-line prediction (targets strafe)
+        self.mlead_max = float(mp.get("max_lead_m", 40))   # cap on the lead offset
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -957,12 +962,17 @@ class Bot:
                 primary = direct
                 if charge < full * 0.97 or err(*direct) > 0.03:
                     fire[idx["laser"]] = True  # keep holding (charging), release when full and on target
-        if mo and primary is None and 25 < d < 225 and mo["cooldown"] <= 0:
-            sol = self._mortar_pitch(d, tz - 4.5 - (self.z + self.stats.get("height", 9) + 0.5), mo["stats"])
-            if sol is not None:
-                primary = (direct[0], sol)
-                if err(*primary) < 0.025:
-                    fire[idx["mortar"]] = True
+        if mo and primary is None and mo["cooldown"] <= 0:
+            mdz = tz - 4.5 - (self.z + self.stats.get("height", 9) + 0.5)
+            px, py, pd = tx, ty, d
+            if self.mortar_lead:
+                px, py, pd = self._mortar_lead(tx, ty, tvx, tvy, d, mdz, mo["stats"])
+            if 25 < pd < 225:
+                sol = self._mortar_pitch(pd, mdz, mo["stats"])
+                if sol is not None:
+                    primary = (math.atan2(py - my, px - mx) if self.mortar_lead else direct[0], sol)
+                    if err(*primary) < 0.025:
+                        fire[idx["mortar"]] = True
         if gun:
             spd = gun["stats"].get("speed", 252)
             lx, ly, lz = tx, ty, tz
@@ -976,6 +986,24 @@ class Bot:
             if d <= gun["stats"].get("range", 230) and err(*lead) < tol and gun.get("ammo", 1) > 0 and not gun.get("reload"):
                 fire[idx["gun"]] = True
         return primary, fire
+
+    def _mortar_lead(self, tx, ty, tvx, tvy, d, dz, st):
+        """Aim point (x, y, horizontal distance) for a shell: the target's position after the flight time of the
+        low arc, times lead_frac, offset capped at max_lead_m. Falls back to the target itself without a solution."""
+        v = st.get("speed", 72)
+        px, py, pd = tx, ty, d
+        for _ in range(3):
+            sol = self._mortar_pitch(pd, dz, st)
+            if sol is None:
+                return tx, ty, d
+            ft = pd / max(1e-6, v * math.cos(sol)) * self.mlead_k
+            ox, oy = tvx * ft, tvy * ft
+            o = math.hypot(ox, oy)
+            if o > self.mlead_max:
+                ox, oy = ox * self.mlead_max / o, oy * self.mlead_max / o
+            px, py = tx + ox, ty + oy
+            pd = math.hypot(px - self.x, py - self.y)
+        return px, py, pd
 
     def _mortar_pitch(self, d, dz, st):
         v, g = st.get("speed", 72), st.get("gravity", 22)
