@@ -75,7 +75,7 @@ class Mech:
 
 
 class Sim:
-    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False, drop_rivals=0.5, ffa=False):
+    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False, drop_rivals=0.5, ffa=False, calm=1.0, shy=0.0):
         self.cfg, self.map, self.rng = cfg, mp, random.Random(seed)
         random.seed(seed)
         self.bot_cmd, self.out, self.verbose = bot_cmd, out, verbose
@@ -86,6 +86,8 @@ class Sim:
         self.bullets = []
         self.sounds = []        # (t, x, y, kind, by)
         self.drops, self.drop_rivals, self.ffa = [], drop_rivals, ffa
+        self.calm = calm      # --ffa-calm: house-vs-house damage scale (longer FFA matches)
+        self.shy = shy        # --ffa-shy: fraction of house bots that camp (stand-in for cautious rival teams)
         self.drop_cfg = cfg.get("drops") or {}
         self.drop_times = list(self.drop_cfg.get("times") or [])
         self._zone_init()
@@ -267,6 +269,8 @@ class Sim:
 
     def _damage(self, victim, amount, weapon, src, bearing):
         rear = False
+        if self.ffa and src is not None and src is not self.me and victim is not self.me:
+            amount *= self.calm
         if src is not None:
             if abs(wrap(bearing - victim.yaw)) > math.radians(self.cfg["mech"]["front_arc_deg"]) / 2:
                 amount *= self.cfg["mech"]["rear_mult"]
@@ -448,6 +452,10 @@ class Sim:
         """Free-for-all house bot (head-to-head stand-in): fights the nearest mech it can see (us or another house
         bot), otherwise drifts into the next circle and roams it. Everyone is an enemy."""
         vis = [o for o in self.mechs if o is not m and o.alive and self.sees(m, o)]
+        if self.shy > 0 and not hasattr(m, "shy"):
+            m.shy = self.rng.random() < self.shy
+        if getattr(m, "shy", False):   # camper: only answers mechs that come close
+            vis = [o for o in vis if math.hypot(o.x - m.x, o.y - m.y) < 80]
         tgt = min(vis, key=lambda o: math.hypot(o.x - m.x, o.y - m.y)) if vis else None
         cd = math.hypot(m.x - self.nc[0], m.y - self.nc[1])
         margin = max(5.0, self.nr * 0.3)
@@ -461,6 +469,10 @@ class Sim:
             ux, uy = norm(tgt.x - m.x, tgt.y - m.y)
             rad = 0.6 if d > 70 else (-0.6 if d < 35 else 0.0)
             want = norm(-uy * m.strafe + ux * rad, ux * m.strafe + uy * rad)
+        elif getattr(m, "shy", False):
+            if not hasattr(m, "camp") or math.hypot(m.camp[0] - self.nc[0], m.camp[1] - self.nc[1]) > self.nr - margin:
+                m.camp = self._free_point(self.nc[0], self.nc[1], max(3.0, (self.nr - margin) * 0.8))
+            want = self._house_path(m, m.camp[0], m.camp[1], 4.0)
         else:
             if not hasattr(m, "roam") or self.t > m.roam_t:
                 m.roam = self._free_point(self.nc[0], self.nc[1], max(5.0, self.nr * 0.7))
@@ -656,6 +668,8 @@ def main():
     ap.add_argument("--record", action="store_true", help="write a replay file per match into replays/")
     ap.add_argument("--budget-ms", type=float, default=50.0)
     ap.add_argument("--ffa", action="store_true", help="free-for-all: house bots fight each other (head-to-head stand-in)")
+    ap.add_argument("--ffa-calm", type=float, default=1.0, help="--ffa: scale house-vs-house damage (e.g. 0.3 = cautious rivals, long matches)")
+    ap.add_argument("--ffa-shy", type=float, default=0.0, help="--ffa: fraction of house bots that camp near the circle center and only fight within 80 m")
     ap.add_argument("--drop-rivals", type=float, default=0.5, help="chance a house bot goes for each supply drop")
     a = ap.parse_args(argv[:i])
     cmd = argv[i + 1:]
@@ -667,7 +681,7 @@ def main():
     for n in range(a.first, a.first + a.matches):
         seed = a.seed * 1000 + n
         out = os.path.join(rl.REPLAYS, f"sim-s{seed}.jsonl.gz") if a.record else None
-        r = Sim(cfg, mp, seed, cmd, out, drop_rivals=a.drop_rivals, ffa=a.ffa).run(a.budget_ms)
+        r = Sim(cfg, mp, seed, cmd, out, drop_rivals=a.drop_rivals, ffa=a.ffa, calm=a.ffa_calm, shy=a.ffa_shy).run(a.budget_ms)
         pts.append(16 - r["place"])
         print(f"match {n + 1:2} seed {seed}: place {r['place']:2} ({16 - r['place']:2} pts)  died {r['cause']:16} at {r['t']:5.1f}s  kills {r['kills']}  drops {r['drops']}"
               + (f"  late {r['late']}" if r["late"] else "") + (f"  stderr: {r['errs'][-1]}" if r["errs"] else ""), flush=True)

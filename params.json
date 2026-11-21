@@ -14,5 +14,13 @@
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
     "enabled": true
+  },
+  "late": {
+    "_note": "late.py: from next circle <= start_next_r, hold a concealed spot inside it instead of roam/hold/hunt; skip cubes past cube_cap",
+    "enabled": false,
+    "start_next_r": 140,
+    "no_hunt": true,
+    "cube_cap": 10,
+    "edge_pref": 0.0
   }
 }
