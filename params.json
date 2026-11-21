@@ -8,7 +8,11 @@
   },
   "roof": {
     "_note": "roof.py: from start_s, climb a roof inside the next circle and hold it (stand back from the edges)",
-    "enabled": true,
+    "enabled": false,
     "start_s": 100
+  },
+  "aggro": {
+    "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
+    "enabled": true
   }
 }

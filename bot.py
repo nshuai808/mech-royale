@@ -96,6 +96,7 @@ class Bot:
         self.stuck_at, self.side_sign, self.escape_climb = [], 1, True
         self.roam, self.roam_t = None, -1.0
         # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
+        self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -197,8 +198,9 @@ class Bot:
             # inside a ring we hold: 4 s alone = 3 cubes + full HP. Stay (and keep shooting) unless it stalls.
             self.mode, why = "drop", dd.reason
             move = dd.move if dd.move and (dd.move[0] or dd.move[1]) else None
-        elif threats and (self._third_party(target, enemies, exposed)
-                          or self._should_evade(close, hp_frac, recently_hurt, target)):
+        elif threats and ((not self.aggro and (self._third_party(target, enemies, exposed)
+                                                or self._should_evade(close, hp_frac, recently_hurt, target)))
+                          or (self.aggro and hp_frac < 0.25 and len(exposed) >= 2)):
             self.mode = "evade"
             move, why = self._evade(threats)
             boost = me["energy"] > 25 and (hp_frac < 0.6 or len(exposed) >= 2)
@@ -213,6 +215,11 @@ class Bot:
                 boost = target["_d"] > 60
         elif roof_go:
             move, why = self._roof_travel()
+        elif self.aggro and self.known and hp_frac > 0.4:
+            # nobody in sight but we know where they are: go get them (the practice bots are weak)
+            kid, (kt, kx, ky) = min(self.known.items(), key=lambda kv: math.hypot(kv[1][1] - x, kv[1][2] - y))
+            self.mode, why = "hunt", f"#{kid}"
+            move = self._go_point(kx, ky, 20.0)
         elif any(e["_d"] < 150 for e in exposed) or (threats and self.t - self.last_hurt_t < 6):
             self.mode = "hide"
             move, why = self._evade(threats)
@@ -355,7 +362,7 @@ class Bot:
         for e in enemies:
             hit = self.attackers.get(e["id"])
             shooting_us = hit and now - hit[0] < 4
-            if e["_d"] > max(230, far) or (e["_d"] > far and not shooting_us):
+            if e["_d"] > max(230, far) or (e["_d"] > far and not shooting_us and not self.aggro):
                 continue  # don't start long-range fights: they only draw the squad in
             s = -e["_d"] * 0.05
             if shooting_us:
