@@ -26,6 +26,7 @@ import traceback
 
 import botlog
 import drops
+import late
 import mechfight as mf
 import roof
 import zone
@@ -124,6 +125,13 @@ class Bot:
                 self.dp = drops.DropPlanner(hello, params.get("drops"))
         except Exception:
             mf.log("drop planner init failed:\n" + traceback.format_exc())
+        # late-game placement (late.py): from the 4th circle on, hold a concealed spot inside the next circle
+        self.lp = None
+        try:
+            if (params.get("late") or {}).get("enabled", False) and self.map is not None:
+                self.lp = late.LatePlanner(self.map, params.get("late"))
+        except Exception:
+            mf.log("late planner init failed:\n" + traceback.format_exc())
 
     # ================================================================== main
     def act(self, obs):
@@ -185,6 +193,7 @@ class Bot:
         on_roof, roof_go = self._roof_state()
         dd = self.dd
         capturing = dd.goal is not None and dd.phase == "capture"
+        late_on = self.lp is not None and self.lp.active(self.zn)
 
         # ---------------------------------------------------------- modes
         if not me["in_zone"] or hurry:
@@ -220,7 +229,7 @@ class Bot:
                 boost = target["_d"] > 60
         elif roof_go:
             move, why = self._roof_travel()
-        elif self.aggro and self.known and hp_frac > 0.4:
+        elif self.aggro and self.known and hp_frac > 0.4 and not (late_on and self.lp.p.no_hunt):
             # nobody in sight but we know where they are: go get them (the practice bots are weak)
             kid, (kt, kx, ky) = min(self.known.items(), key=lambda kv: math.hypot(kv[1][1] - x, kv[1][2] - y))
             self.mode, why = "hunt", f"#{kid}"
@@ -231,6 +240,8 @@ class Bot:
         else:
             drop = dd.goal is not None
             loot = None if drop else self._loot_goal(obs)
+            if late_on and loot and loot[2] == "get cube" and me.get("cubes", 0) >= self.lp.p.cube_cap:
+                loot = None          # past the stat cap a cube only makes us bigger
             if drop:
                 self.mode, why = "drop", f"{dd.drop_id} {dd.phase} {dd.reason}"
                 gx, gy = dd.goal[0], dd.goal[1]
@@ -239,6 +250,23 @@ class Bot:
             elif loot:
                 self.mode, why = "loot", loot[2]
                 move = self._go_point(loot[0], loot[1])
+            elif late_on:
+                spot = None
+                try:
+                    spot = self.lp.update(x, y, self.gx, self.gy, self.gr,
+                                          min(self.deadline - 0.010, time.perf_counter() + 0.006))
+                except Exception:
+                    mf.log("late planner failed:\n" + traceback.format_exc())
+                    self.lp = None
+                if spot is None:
+                    self.mode, why = "late", "search"
+                    move = self._go_circle(self.gx, self.gy, self.gr)
+                elif math.hypot(spot[0] - x, spot[1] - y) > 2.5:
+                    self.mode, why = "late", f"to spot hp {hp_frac:.0%}"
+                    move = self._go_point(spot[0], spot[1], 2.0)
+                else:
+                    self.mode, why = "late", f"hold hp {hp_frac:.0%}"
+                    move = None
             elif hp_frac < 0.92 and self.t - max(self.last_hurt_t, self.last_dealt_t) < 30:
                 self.mode, why = "heal", f"hp {hp_frac:.0%}"
                 move = None if not need_zone else self._go_circle(self.gx, self.gy, self.gr)

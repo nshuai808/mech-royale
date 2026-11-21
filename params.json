@@ -22,5 +22,13 @@
   "unstick": {
     "_note": "docs/stuck_pocket.md: escalating unstick (repeat stuck at one spot = climb toward the goal / slide one side), off = old _unstick",
     "v2": false
+  },
+  "late": {
+    "_note": "late.py: from next circle <= start_next_r, hold a concealed spot inside it instead of roam/hold/hunt; skip cubes past cube_cap",
+    "enabled": false,
+    "start_next_r": 140,
+    "no_hunt": true,
+    "cube_cap": 10,
+    "edge_pref": 0.0
   }
 }
