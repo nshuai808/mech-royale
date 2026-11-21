@@ -11,5 +11,15 @@
   "fire": {
     "special_margin": 0.9,
     "_note": "fire the slot-1 special only inside this fraction of its range"
+  },
+  "zone": {
+    "_note": "zone.py ZoneParams; partial overrides allowed. override_loot_urgency: 1=soon 2=go 3=critical. idle_goal: center|comfort",
+    "enabled": true,
+    "base_margin_m": 6.0,
+    "go_slack_s": 6.0,
+    "soon_slack_s": 20.0,
+    "critical_hp_frac": 0.6,
+    "override_loot_urgency": 2,
+    "idle_goal": "center"
   }
 }

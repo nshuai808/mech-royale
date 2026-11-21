@@ -6,6 +6,7 @@ import os
 import botlog
 import loot
 import mechfight as mf
+import zone
 
 
 def load_params():
@@ -27,6 +28,7 @@ class Bot:
         self.reach = cfg["loot"]["pickup_radius"]
         self.planner = loot.LootPlanner(cfg, loot.LootParams.from_dict(self.params.get("loot")))
         self.special_margin = self.params.get("fire", {}).get("special_margin", 0.9)
+        self.zone = zone.ZoneTracker(hello, self.params.get("zone"))
 
     def _loot(self, obs):
         """Loot decision; any failure falls back to v1 behaviour (no loot) instead of crashing."""
@@ -35,6 +37,16 @@ class Bot:
         except Exception as e:
             botlog.trace(obs["tick"], mode="loot_error", err=repr(e))
             return loot.Decision(reason="error")
+
+    def _zone(self, obs):
+        """Zone plan; any failure falls back to v1/v2 behaviour (no zone plan) instead of crashing."""
+        if not self.zone.p.enabled:
+            return None
+        try:
+            return self.zone.update(obs)
+        except Exception as e:
+            botlog.trace(obs["tick"], mode="zone_error", err=repr(e))
+            return None
 
     def _fire(self, me, dist):
         """fire[i] per slot: the gun always; the special only inside its range. Mortar stays off until
@@ -67,11 +79,19 @@ class Bot:
             act["drop"] = d.drop
 
         enemies = sorted((m for m in obs["mechs"] if m["kind"] == "mech"), key=lambda m: math.dist(m["pos"], me["pos"]))
+        zp = self._zone(obs)
+        zone_boost = False
         goal = d.goal if d.goal is not None else zone_goal
+        if zp is not None:
+            zpar = self.zone.p
+            if zp.goal is not None and (zp.urgency >= zpar.override_loot_urgency or d.goal is None):
+                goal, zone_boost = zp.goal, zp.boost          # zone safety outranks loot
+            elif d.goal is None and zpar.idle_goal == "comfort":
+                goal = zp.comfort_goal
         yaw = math.atan2(goal[1] - y, goal[0] - x)
-        climbing = d.goal is not None and d.goal[2] - z > self.planner.p.roof_dz_m
+        climbing = d.goal is not None and goal is d.goal and d.goal[2] - z > self.planner.p.roof_dz_m
         act.update(move=[math.cos(yaw), math.sin(yaw)], aim=[yaw, 0.0],
-                   boost=(not me["in_zone"]) or (climbing and not me["grounded"]),
+                   boost=(not me["in_zone"]) or zone_boost or (climbing and not me["grounded"]),
                    jump=climbing or obs["tick"] % 40 == 0)
         dist = None
         if enemies:
@@ -85,7 +105,8 @@ class Bot:
         mode = "fight" if enemies else ("loot" if d.goal is not None else "to_zone")
         botlog.trace(obs["tick"], mode=mode, target=enemies[0]["id"] if enemies else None, in_zone=me["in_zone"],
                      loot=d.reason, loot_kind=d.kind, loot_u=round(d.utility, 2),
-                     weapons=[w["kind"] if w else None for w in me["weapons"]])
+                     weapons=[w["kind"] if w else None for w in me["weapons"]],
+                     zone=zp.urgency_name if zp else None, zmargin=round(zp.margin, 1) if zp else None)
         return act
 
 

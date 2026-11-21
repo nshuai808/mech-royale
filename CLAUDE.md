@@ -54,6 +54,7 @@ See `docs/V2_MERGE.md`: what v2 contains, the integration contract (action-field
 - [x] Logging harness: `tools/record.py`, `tools/replay.py`, `tools/analyze.py`, `botlog.py`.
 - [ ] Submit the unmodified starter once to confirm the pipeline (expect ~1.15).
 - [ ] Survival core: zone-aware movement with margin, cover / line-of-sight breaking, retreat + regen when hurt.
+- [x] Zone safety v1 (branch `v2-zone`): `zone.py`, knobs in `params.json["zone"]`, `python3 test_zone.py`. Exact circle prediction, escape simulation, urgency levels; zone goal outranks loot at GO or above; straight-line goal (no nav yet). Supply-drop capture (H-DRP) not built.
 - [x] Loot + weapon pick v1 (branch `v2-loot`): `loot.py`, knobs in `params.json`, straight-line walk to loot goal (no nav yet). Mortar base value is 0 until a ballistic aim solver exists.
 - [ ] Charge-laser handling, mortar lobs, offers and upgrades.
 - [ ] Squad handling: avoid being the weakest visible target; third-party instead of first contact.

@@ -70,7 +70,7 @@ Decisions worth knowing:
 | Loot and weapon choice (H-LOO, H-WPN) | `v2-loot` | `Bot._loot`, goal override, `take`/`drop`, `Bot._fire` | `loot`, `fire` | merged into `v2-loot`; untested against opponents |
 | Navigation and stealth (H-NAV, H-STL) | | | `nav`, `stealth` | |
 | Fight-or-flee and regen (H-ENG, H-REG) | | | `engage` | |
-| Zone and supply drops (H-ZON, H-DRP) | | | `zone`, `drops` | |
+| Zone safety (H-ZON) | `v2-zone` | `Bot._zone`, goal arbiter lines after `enemies = ...`, `boost`, 2 trace fields | `zone` | zone safety only (`zone.py`, `test_zone.py`); `drop_is_safe` helper exists but is not wired; supply-drop capture (H-DRP) not built; untested against opponents |
 | Aiming and movement (H-AIM, H-MOV) | | | `aim`, `move` | |
 | Upgrades (H-UPG) | | | `upgrades` | |
 | Perception (H-PER) | | | `perception` | |
