@@ -38,6 +38,7 @@ UPGRADE_PREF = ["plating", "armor", "nanites", "laser_damage", "laser_charge", "
                 "mortar_velocity", "mortar_splash", "laser_pierce"]
 WEAPON_RANK = {"lightning": 3, "laser": 2, "mortar": 1, "gun": 0}   # lightning: 240 dps, can't miss inside 45 m
 SPECIAL = ("laser", "lightning")
+BEATS = {"laser": "mortar", "mortar": "lightning", "lightning": "laser"}   # protocol weapon triangle
 # context-aware upgrade pick (params.json "upgrade_ctx"): base score per upgrade, then bumps for the weapon
 # we hold and the weapons we have seen on enemy mechs (counter triangle: laser > mortar > lightning > laser)
 UPG_BASE = {"plating": 10.0, "armor": 9.5, "nanites": 8.6,
@@ -109,6 +110,14 @@ class Bot:
         self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
         self.upg_ctx = bool((load_params().get("upgrade_ctx") or {}).get("enabled", False))
         self.foe_kit = {}                # enemy id -> tuple of weapon kinds last seen on it
+        # counter-aware weapon rank (params.json "weapon_ctx"): WEAPON_RANK shifted by the weapons enemies carry
+        wp = load_params().get("weapon_ctx") or {}
+        self.wpn_ctx = bool(wp.get("enabled", False))
+        self.wpn_k = float(wp.get("counter", 1.0))          # rank shift at 100% of foes beaten / beating us
+        self.wpn_n0 = float(wp.get("shrink_n", 3))          # shares shrink by n / (n + shrink_n) for n foes seen
+        self.wpn_margin = float(wp.get("swap_margin", 0.5)) # a pickup must out-rank what it replaces by this much
+        self.wpn_mortar_gun = float(wp.get("mortar_gun_swap", 1.6))   # mortar replaces the gun at this rank
+        self._rank_t, self._rank = None, dict(WEAPON_RANK)
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -154,7 +163,7 @@ class Bot:
             self.dd = self.dp.step(obs, zone_plan=self.zp)   # never raises
 
         act = {"tick": obs["tick"]}
-        if self.upg_ctx:
+        if self.upg_ctx or self.wpn_ctx:
             self._note_foes(obs)
         if obs.get("offer"):
             act["pick"] = self._pick_upgrade(obs["offer"])
@@ -546,13 +555,15 @@ class Bot:
         me, x, y = self.me, self.x, self.y
         slots = me["weapons"]
         have = {w["kind"] for w in slots if w}
-        worst = min((WEAPON_RANK[w["kind"]] for w in slots[1:] if w), default=-1)
+        R = self._ranks()
+        worst = min((R[w["kind"]] for w in slots[1:] if w), default=-1)
+        margin = self.wpn_margin if self.wpn_ctx else 1e-9
         best, best_s = None, -1e9
         for p in obs.get("pickups", []):
             if p["kind"] in have or abs(p["pos"][2] - self.z) > 3.5:
                 continue
-            gain = WEAPON_RANK[p["kind"]] - worst
-            if gain <= 0 and not self._gun_swap(p["kind"]):
+            gain = R[p["kind"]] - worst
+            if gain < margin and not self._gun_swap(p["kind"]):
                 continue
             gain = max(gain, 1)
             d = math.dist(p["pos"][:2], (x, y))
@@ -591,7 +602,8 @@ class Bot:
         """True if a pickup of this kind should replace the gun in slot 0 (we already hold another special)."""
         slots = self.me["weapons"]
         g, s1 = slots[0], slots[1] if len(slots) > 1 else None
-        return (kind in SPECIAL and g is not None and g["kind"] == "gun" and s1 is not None
+        ok = kind in SPECIAL or (self.wpn_ctx and kind == "mortar" and self._ranks()["mortar"] >= self.wpn_mortar_gun)
+        return (ok and g is not None and g["kind"] == "gun" and s1 is not None
                 and s1["kind"] != kind and s1["kind"] in SPECIAL + ("mortar",))
 
     def _take(self, obs):
@@ -604,7 +616,9 @@ class Bot:
                 continue
             if slots[1] is None:
                 return {"take": p["id"]}
-            if WEAPON_RANK[p["kind"]] > WEAPON_RANK[slots[1]["kind"]] and not slots[1].get("charge"):
+            R = self._ranks()
+            margin = self.wpn_margin if self.wpn_ctx else 1e-9
+            if R[p["kind"]] - R[slots[1]["kind"]] >= margin and not slots[1].get("charge"):
                 # a better special: if the gun can go instead, keep both specials
                 if self._gun_swap(p["kind"]) and slots[1]["kind"] in SPECIAL:
                     return {"take": p["id"], "drop": 0}
@@ -612,6 +626,28 @@ class Bot:
             if self._gun_swap(p["kind"]):
                 return {"take": p["id"], "drop": 0}
         return None
+
+    def _ranks(self):
+        """WEAPON_RANK, shifted (flag weapon_ctx) by the share of seen enemies each weapon beats minus the share
+        that beats it. Shares shrink toward 0 while few enemies have been seen. Cached per decision."""
+        if not self.wpn_ctx:
+            return WEAPON_RANK
+        t = getattr(self, "t", None)
+        if t is not None and t == self._rank_t:
+            return self._rank
+        r = dict(WEAPON_RANK)
+        try:
+            n = len(self.foe_kit)
+            if n:
+                sh = self._foe_share()
+                f = self.wpn_k * n / (n + self.wpn_n0)
+                for k, prey in BEATS.items():
+                    hunter = next(h for h, v in BEATS.items() if v == k)
+                    r[k] += f * (sh.get(prey, 0.0) - sh.get(hunter, 0.0))
+        except Exception:
+            r = dict(WEAPON_RANK)
+        self._rank_t, self._rank = t, r
+        return r
 
     def _note_foes(self, obs):
         for m in obs.get("mechs", []):
