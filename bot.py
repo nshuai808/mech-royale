@@ -1073,6 +1073,13 @@ class Bot:
         aim = None
         if target is not None:
             aim, fire = self._engage(target, slots)
+            # PROBE ONLY (never ship): after probe.holdfire_after_s, never shoot mechs, so the practice score
+            # = our kills before that time (house bots only die to us, plus rare zone deaths)
+            if not hasattr(self, "_probe_t"):
+                self._probe_t = (load_params().get("probe") or {}).get("holdfire_after_s")
+            hold_t = self._probe_t
+            if hold_t is not None and self.t >= hold_t and target.get("kind") == "mech":
+                fire = [False, False]
         if aim is None and target is None and self.mode in ("loot", "hold", "move", "roam"):
             cr = self._crate(obs, 60)
             if cr is not None and (self.map is None or self.map.los(self.x, self.y, cr["pos"][0], cr["pos"][1])):
