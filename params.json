@@ -13,6 +13,6 @@
   },
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
-    "enabled": true
+    "enabled": false
   }
 }
