@@ -95,6 +95,9 @@ class Bot:
         self.zone_commit = False         # once a zone run starts, finish it (no flip-flopping)
         self.stuck_at, self.side_sign, self.escape_climb = [], 1, True
         self.roam, self.roam_t = None, -1.0
+        # roam_fix: roam only to points with free ground nearby, and don't restart a failed A* for the same goal at once
+        self.roam_fix = bool((load_params().get("roam_fix") or {}).get("enabled", False))
+        self.fail_goal, self.fail_t = None, -99.0
         # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
         self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
         rp = load_params().get("roof") or {}
@@ -242,12 +245,18 @@ class Bot:
                 move = self._go_circle(self.gx, self.gy, self.gr)
             elif self.t < 180 and hp_frac > 0.8:
                 # nothing to do early: roam the safe zone to find crates, NPCs and weapons (cubes = HP + damage)
-                if self.roam is None or self.t > self.roam_t or math.hypot(self.roam[0] - x, self.roam[1] - y) < 8:
-                    a = self.rng.uniform(0, TAU)
-                    r = self.rng.uniform(40, 110)
-                    px, py = x + r * math.cos(a), y + r * math.sin(a)
-                    if not self.in_safe(px, py, ahead=30):
-                        px, py = self.gx + (px - self.gx) * 0.3, self.gy + (py - self.gy) * 0.3
+                roam_failed = (self.roam_fix and self.roam is not None and self.fail_goal is not None
+                               and self.fail_goal == self._goal_key(self.roam[0], self.roam[1], 6.0))
+                if (self.roam is None or self.t > self.roam_t or roam_failed
+                        or math.hypot(self.roam[0] - x, self.roam[1] - y) < 8):
+                    for _ in range(6 if self.roam_fix else 1):
+                        a = self.rng.uniform(0, TAU)
+                        r = self.rng.uniform(40, 110)
+                        px, py = x + r * math.cos(a), y + r * math.sin(a)
+                        if not self.in_safe(px, py, ahead=30):
+                            px, py = self.gx + (px - self.gx) * 0.3, self.gy + (py - self.gy) * 0.3
+                        if not self.roam_fix or self.map is None or self.map.nearest_free(px, py, max_r=2) >= 0:
+                            break
                     self.roam, self.roam_t = (px, py), self.t + 20
                 self.mode, why = "roam", ""
                 move = self._go_point(self.roam[0], self.roam[1], 6.0)
@@ -616,6 +625,10 @@ class Bot:
             return None
         return self._go_point(gx, gy, gr)
 
+    @staticmethod
+    def _goal_key(gx, gy, gr):
+        return (round(gx / 4), round(gy / 4), round(gr / 4))
+
     def _go_point(self, gx, gy, gr=1.5):
         m = self.map
         dx, dy = gx - self.x, gy - self.y
@@ -627,14 +640,20 @@ class Bot:
         if m.blocked(self.x, self.y) or m.ray_free(self.x, self.y, self.x + ux * look, self.y + uy * look, m.nav):
             self.path = None
             return (ux, uy)
-        goal = (round(gx / 4), round(gy / 4), round(gr / 4))
+        goal = self._goal_key(gx, gy, gr)
         replan = self.job_goal != goal or self.path is None and self.job is None or self.t - self.path_t > 5
+        if self.roam_fix and goal == self.fail_goal and self.t - self.fail_t < 3.0:
+            replan = False   # this goal just failed (unreachable / too far): walk straight, retry in a few s
+            if self.job_goal != goal:   # drop a search / path for some other goal so we don't follow it here
+                self.job, self.path, self.job_goal = None, None, goal
         if replan and (self.job is None or self.job_goal != goal):
             self.job, self.job_goal = AStar(m, self.x, self.y, gx, gy, gr), goal
         if self.job is not None:
             self.job.step(max(0.001, self.deadline - time.perf_counter() - 0.008))
             if self.job.done:
                 self.path, self.path_t, self.job = self.job.path, self.t, None
+                if self.path is None:
+                    self.fail_goal, self.fail_t = goal, self.t
         if self.path:
             # drop reached waypoints, aim at the furthest visible one
             while len(self.path) > 1 and math.hypot(self.path[0][0] - self.x, self.path[0][1] - self.y) < 4:

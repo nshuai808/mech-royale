@@ -14,5 +14,9 @@
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
     "enabled": true
+  },
+  "roam_fix": {
+    "_note": "roam to points with free ground nearby; after a failed A* for a goal, walk straight for 3 s before retrying it",
+    "enabled": true
   }
 }
