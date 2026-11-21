@@ -14,5 +14,13 @@
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
     "enabled": true
+  },
+  "dodge": {
+    "_note": "Step 1: sidestep incoming gun bullets and mortar shells; add beam shooters to known enemy positions. enabled=false restores main.",
+    "enabled": true,
+    "bullets": true,
+    "mortars": true,
+    "beams": true,
+    "weight": 1.5
   }
 }

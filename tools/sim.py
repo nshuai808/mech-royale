@@ -370,6 +370,15 @@ class Sim:
                                "dist": "near" if d < 60 else "mid" if d < 160 else "far", "age": round(self.t - st, 2)})
         g = self.cfg["weapons"]["gun"]
         mc = self.cfg["mech"]
+        v = self.cfg["vision"]
+        projs = []                      # other mechs' bullets we could see: within near_range, or in the view wedge
+        for i, b in enumerate(self.bullets):
+            if b[7] == me.id:
+                continue
+            d = math.hypot(b[0] - me.x, b[1] - me.y)
+            if d <= v["near_range"] or (d <= v["range"] and abs(wrap(math.atan2(b[1] - me.y, b[0] - me.x) - me.yaw)) <= math.radians(v["fov_deg"]) / 2):
+                projs.append({"id": 280 + i, "kind": "gun", "pos": [round(b[0], 2), round(b[1], 2), round(b[2], 2)],
+                              "vel": [round(b[3], 2), round(b[4], 2), round(b[5], 2)]})
         obs = {
             "type": "obs", "tick": self.tick, "t": round(self.t, 2), "alive": sum(m.alive for m in self.mechs),
             "self": {"id": me.id, "pos": [round(me.x, 2), round(me.y, 2), round(me.z, 2)], "vel": [round(me.vx, 2), round(me.vy, 2), 0],
@@ -378,7 +387,7 @@ class Sim:
                      "weapons": [{"kind": "gun", "cooldown": round(me.gun_cd, 2), "ammo": me.ammo, "reload": round(max(0, me.reload), 2),
                                   "stats": dict(g)}, None],
                      "in_zone": self.in_zone(me), "stats": dict(mc)},
-            "mechs": others, "projectiles": [], "crates": [], "cubes": [], "pickups": [], "sounds": sounds, "beams": [],
+            "mechs": others, "projectiles": projs, "crates": [], "cubes": [], "pickups": [], "sounds": sounds, "beams": [],
             "events": me.events, "offer": None,
             "drops": [{"id": d["id"], "pos": [round(d["x"], 2), round(d["y"], 2), round(d["z"], 2)], "radius": self.drop_cfg.get("radius", 8),
                        "lands_in": round(max(0.0, d["land"] - self.t), 2), "capture_s": self.drop_cfg.get("capture_s", 4),
