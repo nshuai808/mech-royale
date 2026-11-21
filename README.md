@@ -12,6 +12,7 @@ Submissions close **Sun 11:00 AM ET**. Max 4 submissions per hour per team.
 | `Dockerfile` | What the scorer builds. Must stay at the top of the repo. |
 | `bot.py` | Our bot (`Bot.act()` runs 10×/s, must answer in < 50 ms). Started from the kit's example. |
 | `loot.py`, `test_loot.py` | Loot pickup priority + weapon counter-pick (H-LOO, H-WPN). `python3 test_loot.py`. |
+| `engage.py`, `test_engage.py` | Fight-or-flee estimator + retreat-and-regen state machine (H-ENG, H-REG). `python3 test_engage.py`; design in `docs/ENGAGE.md`. |
 | `params.json` | Tunable knobs (loot section, fire margin). |
 | `mechfight.py` | The kit's protocol wrapper (stdlib only). Shouldn't need editing. |
 | `kit/protocol.md` | **The full rulebook.** Read it first. |

@@ -5,6 +5,7 @@ import os
 
 import aim
 import botlog
+import engage
 import loot
 import mechfight as mf
 import upgrades
@@ -77,6 +78,8 @@ class Bot:
             act["pick"] = pick
 
         d = self._loot(obs)
+        e = self._engage(obs)
+        quiet = e.mode in ("retreat", "regen")   # retreat/regen outrank fight, loot and the zone walk (V2_MERGE goal priority)
         if d.take is not None:
             act["take"] = d.take
             if d.drop is not None:
@@ -86,11 +89,19 @@ class Bot:
 
         enemies = sorted((m for m in obs["mechs"] if m["kind"] == "mech"), key=lambda m: math.dist(m["pos"], me["pos"]))
         goal = d.goal if d.goal is not None else zone_goal
+        if e.mode == "retreat":
+            if e.goal is not None:
+                goal = e.goal
+            elif e.move is not None:
+                goal = (x + 50 * e.move[0], y + 50 * e.move[1], z)
         yaw = math.atan2(goal[1] - y, goal[0] - x)
-        climbing = d.goal is not None and d.goal[2] - z > self.planner.p.roof_dz_m
-        act.update(move=[math.cos(yaw), math.sin(yaw)], aim=[yaw, 0.0],
-                   boost=(not me["in_zone"]) or (climbing and not me["grounded"]),
-                   jump=climbing or obs["tick"] % 40 == 0)
+        climbing = not quiet and d.goal is not None and d.goal[2] - z > self.planner.p.roof_dz_m
+        move = [math.cos(yaw), math.sin(yaw)]
+        if quiet:   # regen: stand still (silent); retreat: e.speed < 1 once clear and unseen (walking under 5 m/s is silent)
+            move = [0.0, 0.0] if e.mode == "regen" else [move[0] * e.speed, move[1] * e.speed]
+        act.update(move=move, aim=[yaw, 0.0],
+                   boost=(not me["in_zone"]) or (climbing and not me["grounded"]) or e.boost,
+                   jump=(climbing or obs["tick"] % 40 == 0) and not quiet)
         dist = None
         if enemies:
             t = enemies[0]["pos"]
