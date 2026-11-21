@@ -522,6 +522,8 @@ class Bot:
         aim = None
         if target is not None:
             aim, fire = self._engage(target, slots)
+        if aim is None and self.mode in ("evade", "hide"):
+            aim = self._threat_aim()     # rear hits do x1.5: keep our front to whoever we are running from
         if aim is None:
             aim = self._idle_aim(mv)
         act["aim"] = [round(aim[0], 4), round(aim[1], 4)]
@@ -595,6 +597,19 @@ class Bot:
             return None
         tan_p = (d - math.sqrt(disc)) / (2 * a)
         return math.atan(tan_p)
+
+    def _threat_aim(self):
+        """Aim at the nearest known enemy within 220 m, else where we were hit from in the last 6 s; None if neither."""
+        best, best_d = None, 220.0
+        for (_, kx, ky) in self.known.values():
+            d = math.hypot(kx - self.x, ky - self.y)
+            if d < best_d:
+                best, best_d = (kx, ky), d
+        if best is not None:
+            return (math.atan2(best[1] - self.y, best[0] - self.x), 0.0)
+        if self.hurt_bearing is not None and self.t - self.last_hurt_t < 6.0:
+            return (self.hurt_bearing, 0.0)
+        return None
 
     def _idle_aim(self, mv):
         t = self.t
