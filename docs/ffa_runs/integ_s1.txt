@@ -1,0 +1,25 @@
+match  1 seed 1000: place 16 ( 0 pts)  died #10 (hard)       at   8.6s  kills 0  drops 0
+match  2 seed 1001: place 16 ( 0 pts)  died #9 (hard)        at  11.4s  kills 0  drops 0
+match  3 seed 1002: place  7 ( 9 pts)  died #5 (medium)      at  45.2s  kills 1  drops 0
+match  4 seed 1003: place  1 (15 pts)  died survived         at 251.1s  kills 1  drops 2
+match  5 seed 1004: place 15 ( 1 pts)  died #0 (easy)        at  18.8s  kills 0  drops 0
+match  6 seed 1005: place  1 (15 pts)  died survived         at 314.3s  kills 2  drops 2
+match  7 seed 1006: place  1 (15 pts)  died survived         at 259.0s  kills 2  drops 2
+match  8 seed 1007: place  1 (15 pts)  died survived         at 276.2s  kills 2  drops 3
+match  9 seed 1008: place  1 (15 pts)  died survived         at 202.8s  kills 2  drops 2
+match 10 seed 1009: place  1 (15 pts)  died survived         at 207.3s  kills 3  drops 1
+match 11 seed 1010: place  1 (15 pts)  died survived         at 318.3s  kills 2  drops 1
+match 12 seed 1011: place  1 (15 pts)  died survived         at 187.2s  kills 3  drops 1
+match 13 seed 1012: place  1 (15 pts)  died survived         at 264.9s  kills 3  drops 2
+match 14 seed 1013: place 16 ( 0 pts)  died #10 (hard)       at  10.5s  kills 0  drops 0
+match 15 seed 1014: place  2 (14 pts)  died zone             at 268.3s  kills 4  drops 0
+match 16 seed 1015: place 12 ( 4 pts)  died #10 (hard)       at  26.3s  kills 0  drops 0
+match 17 seed 1016: place 15 ( 1 pts)  died #11 (hard)       at  11.9s  kills 0  drops 0
+match 18 seed 1017: place  1 (15 pts)  died survived         at 269.4s  kills 2  drops 2
+match 19 seed 1018: place  1 (15 pts)  died survived         at 309.3s  kills 3  drops 1
+match 20 seed 1019: place  1 (15 pts)  died survived         at 274.8s  kills 2  drops 3
+match 21 seed 1020: place  1 (15 pts)  died survived         at 214.0s  kills 2  drops 1
+match 22 seed 1021: place  3 (13 pts)  died zone             at 197.0s  kills 0  drops 0
+match 23 seed 1022: place  1 (15 pts)  died survived         at 256.1s  kills 2  drops 1
+match 24 seed 1023: place  1 (15 pts)  died survived         at 230.4s  kills 4  drops 1
+SCORE 11.12  (+-1.25 s.e., 24 matches, 729 s)
