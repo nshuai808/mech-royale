@@ -38,7 +38,7 @@ UPGRADE_PREF = ["plating", "armor", "nanites", "laser_damage", "laser_charge", "
                 "mortar_velocity", "mortar_splash", "laser_pierce"]
 WEAPON_RANK = {"lightning": 3, "laser": 2, "mortar": 1, "gun": 0}   # lightning: 240 dps, can't miss inside 45 m
 SPECIAL = ("laser", "lightning")
-BUDGET_S = 0.028  # our own soft deadline per decision; the server's is 50 ms
+BUDGET_S = 0.022  # our own soft deadline per decision; the server's is 50 ms
 
 
 def wrap(a):
@@ -97,6 +97,9 @@ class Bot:
         self.roam, self.roam_t = None, -1.0
         # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
         self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
+        self.ultra = bool((load_params().get("ultra") or {}).get("enabled", False))
+        self.zmax = 45.0 if self.ultra else 3.5    # ultra: jet up to loot on roofs
+        self.hop_t, self.jet_goal_z = -9.0, 0.0
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -198,6 +201,8 @@ class Bot:
             # inside a ring we hold: 4 s alone = 3 cubes + full HP. Stay (and keep shooting) unless it stalls.
             self.mode, why = "drop", dd.reason
             move = dd.move if dd.move and (dd.move[0] or dd.move[1]) else None
+        elif self.ultra:
+            move, boost, why = self._ultra(obs, target, need_zone, hp_frac)
         elif threats and ((not self.aggro and (self._third_party(target, enemies, exposed)
                                                 or self._should_evade(close, hp_frac, recently_hurt, target)))
                           or (self.aggro and hp_frac < 0.25 and len(exposed) >= 2)):
@@ -260,6 +265,11 @@ class Bot:
             mv, jump, boost2 = (move if move is not None else (0.0, 0.0)), False, False   # small in-ring steps, no jets
         elif self.mode == "roof":
             mv, jump, boost2 = (move if move is not None else (0.0, 0.0)), False, False
+        elif self.mode == "jetloot":
+            # loot above us (roof): press toward it, jump, jet while below it
+            mv, boost = move, False
+            jump = me["grounded"]
+            boost2 = (not me["grounded"]) and z < self.jet_goal_z + 2.0
         elif self.mode == "climb":
             # jump, then jet while airborne until the feet clear the roof edge, pressing toward the stand point
             mv = move
@@ -271,6 +281,10 @@ class Bot:
             mv, jump, boost2 = self._unstick(mv, move is not None)
         if move is not None and self.mode in ("move", "loot", "heal", "drop") and not boost and not boost2:
             pass  # walking at full speed: faster than sneaking, and the squad hunts us anyway
+        if self.ultra and self.mode == "fight" and me["energy"] > 55 and self.t - self.hop_t > 1.8:
+            jump, self.hop_t = True, self.t          # hop: harder to hit, and over low cover
+        if self.ultra and self.mode == "fight" and not me["grounded"] and self.t - self.hop_t < 0.6 and me["energy"] > 30:
+            boost2 = True                            # short jet burst at the top of the hop
         act["move"] = [round(mv[0], 3), round(mv[1], 3)]
         act["boost"] = bool(boost or boost2)
         if jump:
@@ -383,6 +397,53 @@ class Bot:
                         best = n
         self.target_id = best["id"] if best else None
         return best
+
+    def _ultra(self, obs, target, need_zone, hp_frac):
+        """Ultra-aggressive: never flee. Fight > supply drop > loot (cubes, best guns, jet to roof loot) > hunt > heal
+        > zone > roam. Boost-run whenever travelling with energy to spare."""
+        x, y, me, dd = self.x, self.y, self.me, self.dd
+        fast = me["energy"] > 45
+        if target is not None:
+            self.mode = "fight"
+            move = self._fight_move(target)
+            if target["kind"] == "mech":
+                lt = any(w and w["kind"] == "lightning" for w in me["weapons"])
+                lo, hi = (15, 38) if lt else self._range_band()
+                if target["_d"] > hi:
+                    return self._go_point(target["pos"][0], target["pos"][1], hi * 0.8), fast, f"#{target['id']} close"
+            return move, False, f"#{target['id']}"
+        if dd.goal is not None:
+            self.mode = "drop"
+            gx, gy = dd.goal[0], dd.goal[1]
+            d = math.hypot(gx - x, gy - y)
+            return (None if d < 2.0 else self._go_point(gx, gy)), fast and d > 25, f"{dd.drop_id} {dd.phase}"
+        loot = self._loot_goal(obs)
+        if loot:
+            gx, gy, label, gz = loot
+            d = math.hypot(gx - x, gy - y)
+            if gz - self.z > 2.5 and d < 14 and me["energy"] > min(100.0, (gz - self.z) / 60 * 100 + 10):
+                self.mode, self.jet_goal_z = "jetloot", gz
+                return norm(gx - x, gy - y), False, label + " jet"
+            self.mode = "loot"
+            return self._go_point(gx, gy, 1.5 if gz - self.z <= 2.5 else 6.0), fast and d > 30, label
+        if self.known:
+            kid, (kt, kx, ky) = min(self.known.items(), key=lambda kv: math.hypot(kv[1][1] - x, kv[1][2] - y))
+            self.mode = "hunt"
+            return self._go_point(kx, ky, 20.0), fast and math.hypot(kx - x, ky - y) > 40, f"#{kid}"
+        if hp_frac < 0.92 and self.t - max(self.last_hurt_t, self.last_dealt_t) < 30:
+            self.mode = "heal"
+            return (self._go_circle(self.gx, self.gy, self.gr) if need_zone else None), False, f"hp {hp_frac:.0%}"
+        if need_zone:
+            self.mode = "move"
+            return self._go_circle(self.gx, self.gy, self.gr), False, "into next circle"
+        if self.roam is None or self.t > self.roam_t or math.hypot(self.roam[0] - x, self.roam[1] - y) < 8:
+            a, r = self.rng.uniform(0, TAU), self.rng.uniform(40, 120)
+            px, py = x + r * math.cos(a), y + r * math.sin(a)
+            if not self.in_safe(px, py, ahead=30):
+                px, py = self.gx + (px - self.gx) * 0.3, self.gy + (py - self.gy) * 0.3
+            self.roam, self.roam_t = (px, py), self.t + 20
+        self.mode = "roam"
+        return self._go_point(self.roam[0], self.roam[1], 6.0), False, ""
 
     def _roof_state(self):
         """(on our roof, want to go to it). Picks / drops the roof as the zone moves."""
@@ -535,38 +596,38 @@ class Bot:
         worst = min((WEAPON_RANK[w["kind"]] for w in slots[1:] if w), default=-1)
         best, best_s = None, -1e9
         for p in obs.get("pickups", []):
-            if p["kind"] in have or abs(p["pos"][2] - self.z) > 3.5:
+            if p["kind"] in have or abs(p["pos"][2] - self.z) > self.zmax:
                 continue
             gain = WEAPON_RANK[p["kind"]] - worst
             if gain <= 0 and not self._gun_swap(p["kind"]):
                 continue
             gain = max(gain, 1)
             d = math.dist(p["pos"][:2], (x, y))
-            reach = (250 if self.t < 120 else 150) if not (have & set(SPECIAL)) else 90
+            reach = (250 if (self.t < 120 or self.ultra) else 150) if not (have & set(SPECIAL)) else (150 if self.ultra else 90)
             if d < reach and self.in_safe(p["pos"][0], p["pos"][1]):
                 s = gain * 30 - d
                 if s > best_s:
-                    best, best_s = (p["pos"][0], p["pos"][1], f"get {p['kind']}"), s
+                    best, best_s = (p["pos"][0], p["pos"][1], f"get {p['kind']}", p["pos"][2]), s
         if best:
             return best
         for c in obs.get("cubes", []):
             d = math.dist(c["pos"][:2], (x, y))
-            if d < 120 and abs(c["pos"][2] - self.z) < 3.5 and self.in_safe(c["pos"][0], c["pos"][1]):
-                return (c["pos"][0], c["pos"][1], "get cube")
+            if d < (200 if self.ultra else 120) and abs(c["pos"][2] - self.z) < self.zmax and self.in_safe(c["pos"][0], c["pos"][1]):
+                return (c["pos"][0], c["pos"][1], "get cube", c["pos"][2])
         cr = self._crate(obs, 200 if self.t < 120 and not (have & set(SPECIAL)) else 150)
         if cr is not None:
             d = math.dist(cr["pos"][:2], (x, y))
             if d > 35:
-                return (cr["pos"][0], cr["pos"][1], "crate")
+                return (cr["pos"][0], cr["pos"][1], "crate", cr["pos"][2])
         return None
 
     def _crate(self, obs, max_d):
         """Nearest crate on our level, inside the safe zone, worth breaking (cube + 50% weapon); None if none."""
-        if self.t > 300 or self.me["hp"] < 0.7 * self.me["max_hp"]:
+        if (self.t > 300 and not self.ultra) or self.me["hp"] < 0.5 * self.me["max_hp"]:
             return None
         best, best_d = None, max_d
         for c in obs.get("crates", []):
-            if abs(c["pos"][2] - self.z) > 3.5 or not self.in_safe(c["pos"][0], c["pos"][1]):
+            if abs(c["pos"][2] - self.z) > self.zmax or not self.in_safe(c["pos"][0], c["pos"][1]):
                 continue
             d = math.dist(c["pos"][:2], (self.x, self.y))
             if d < best_d:
@@ -705,7 +766,7 @@ class Bot:
         aim = None
         if target is not None:
             aim, fire = self._engage(target, slots)
-        if aim is None and target is None and self.mode in ("loot", "hold", "move", "roam"):
+        if aim is None and target is None and self.mode in ("loot", "hold", "move", "roam", "hunt"):
             cr = self._crate(obs, 60)
             if cr is not None and (self.map is None or self.map.los(self.x, self.y, cr["pos"][0], cr["pos"][1])):
                 fake = {"kind": "crate", "pos": cr["pos"], "vel": (0, 0, 0)}

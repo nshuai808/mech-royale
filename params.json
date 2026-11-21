@@ -4,7 +4,13 @@
     "enabled": true
   },
   "drops": {
-    "enabled": true
+    "enabled": true,
+    "self_threat_radius_m": 0,
+    "threat_cost": 0.15,
+    "contested_cost": 0.25,
+    "min_utility": 0.2,
+    "max_dist_m": 350,
+    "late_s": 40
   },
   "roof": {
     "_note": "roof.py: from start_s, climb a roof inside the next circle and hold it (stand back from the edges)",
@@ -13,6 +19,10 @@
   },
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
+    "enabled": true
+  },
+  "ultra": {
+    "_note": "never flee; fight > drop > loot (cubes 200 m, guns, jet to roof loot) > hunt; boost-run; hop in fights",
     "enabled": true
   }
 }
