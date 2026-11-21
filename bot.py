@@ -204,7 +204,7 @@ class Bot:
         elif threats and ((not self.aggro and (self._third_party(target, enemies, exposed)
                                                 or self._should_evade(close, hp_frac, recently_hurt, target)))
                           or (self.aggro and hp_frac < 0.25 and len(exposed) >= 2)
-                          or (self.aggro and self._multi_hit(hp_frac))):
+                          or self._multi_hit(hp_frac)):
             self.mode = "evade"
             move, why = self._evade(threats)
             boost = me["energy"] > 25 and (hp_frac < 0.6 or len(exposed) >= 2)
