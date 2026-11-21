@@ -84,4 +84,5 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 
 | Time | Commit | Score | Notes |
 | --- | --- | --- | --- |
-| | | | |
+| Fri ~8:35 PM | `c995b28` | 1.15 | Starter bot + logging harness. Same as the baseline: the starter is deterministic on the fixed seeds. |
+| Fri ~8:40 PM | `3c42f4f` | **2.92** | Survival bot v2: hide when 2+ see us, fight only the hunter, A* pathing, cover. Sim had predicted ~2.0. |

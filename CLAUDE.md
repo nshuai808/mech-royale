@@ -58,7 +58,7 @@ The final is a real free-for-all against other teams: there, survival and placem
 - Never force-push or delete a submitted commit; the repo must stay public until results are out.
 - Freeze by **Sun 9:00 AM ET**; cutoff **Sun 11:00 AM ET**.
 
-## Bot architecture (branch `survival-v1`)
+## Bot architecture (`main`)
 - `nav.py`: 2 m grids (walls incl. steep terrain, sight blockers, nav = walls grown 1 cell), rays, LOS,
   `find_cover`, incremental `AStar` (time-budgeted per tick). Builds in ~0.3 s at hello.
 - `bot.py` modes, in priority: zone (committed once started) > evade (2+ enemies can see us, or losing) >
@@ -74,12 +74,14 @@ The final is a real free-for-all against other teams: there, survival and placem
 | v1 (fights anything in range) | 0.83 (6 m) | - |
 | v2 (hide when 2+ see us, fight only the hunter) | 2.00 | 2.50 |
 | v2 + zone commit (current) | 2.00 | 2.00 |
+| **real leaderboard** | starter 1.15 | v2 **2.92** |
 
 ## Status / next steps
 - [x] Repo set up from the Python starter.
 - [x] Logging harness, simulator, fuzz test.
-- [x] Survival bot v2 on branch `survival-v1` (not yet merged to main, not yet submitted).
-- [ ] Submit the starter (main) once and `survival-v1` once; log both scores in README.
+- [x] Survival bot v2: **real practice score 2.92** (starter 1.15, leader at the time 1.75). Now on `main`.
+- [x] Sim check: v2 ~2.0 in the sim vs 2.92 real; starter ~1.0 vs 1.15. The sim ranks correctly and is harsher
+      than the real squad (likely: real non-hunters shoot on sight less). Fine for A/B; don't read its absolute level.
 - [ ] Docker timing check of survival-v1 (`replay.py --repeat 3` in the sandbox; map build must stay well under the 20 s hello budget).
 - [ ] Early deaths at spawn (several sim matches die < 20 s): get out of sight first, then fight.
 - [ ] Better 1v1: peek from cover, fight at the corner, reload in cover, use regen between hunters.
