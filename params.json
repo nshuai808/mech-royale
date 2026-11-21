@@ -94,5 +94,9 @@
       55,
       70
     ]
+  },
+  "laser_flee": {
+    "_note": "never hold the laser trigger in evade/hide/zone (charging halves move speed); off = integ-3",
+    "enabled": true
   }
 }

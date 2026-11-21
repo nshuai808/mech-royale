@@ -96,6 +96,8 @@ class Bot:
         self.hurt_bearing = None
         self.heard = None                # (t, bearing, dist)
         self.short_until = -1.0
+        # laser_flee: charging a laser halves move speed (protocol), so never hold the laser trigger while escaping
+        self.laser_flee = bool((load_params().get("laser_flee") or {}).get("enabled", False))
         self.hist = []                   # (t, x, y)
         self.escape_until, self.escape_dir = -1.0, (0.0, 0.0)
         self.strafe_sign, self.strafe_until = 1, 0.0
@@ -1073,6 +1075,10 @@ class Bot:
         aim = None
         if target is not None:
             aim, fire = self._engage(target, slots)
+            if self.laser_flee and self.mode in ("evade", "hide", "zone"):
+                # let go: a started charge fires now (at >= min_charge) along our aim, and no new one starts, so we
+                # escape at full speed instead of half (gun and lightning keep firing)
+                fire = [False if (w and w["kind"] == "laser") else f for w, f in zip(slots, fire)]
         if aim is None and target is None and self.mode in ("loot", "hold", "move", "roam"):
             cr = self._crate(obs, 60)
             if cr is not None and (self.map is None or self.map.los(self.x, self.y, cr["pos"][0], cr["pos"][1])):
