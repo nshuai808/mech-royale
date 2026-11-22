@@ -158,3 +158,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `2a8fa35` | 5.49 (builders-4) | 768b8a3 + ReloadAfterKill 10 s. -0.26. Every 768b8a3 variant lands 5.40-5.55: 768b8a3's true level is likely ~5.5-5.6 (its 5.75 partly a lucky draw). |
 | Sun | `62cf6af` | 5.39 (builders-4) | 768b8a3 with upgrade order laser_damage, laser_charge, nanites, plating, armor. -0.36: order stays. |
 | Sun | `1c47fc9` | 5.69 (builders-4) | 768b8a3 + giddy's `Opening` mode (first 20 s: laser seek 240 m, loot 150 m). -0.06: neutral, closest so far. |
+| Sun | `081f0d7` | 5.33 (builders-4) | 768b8a3 + early target tracking from 60 s (Codex priority 4). -0.42: dropped. Sim said +0.23: third giddy fight change where the house-bot sim was wrong. |
