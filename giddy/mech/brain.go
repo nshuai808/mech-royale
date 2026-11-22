@@ -763,7 +763,11 @@ func (b *Brain) step(o *Obs, act *Action) {
 		}
 		duel := duelPhase && foe.Kind != "npc" && ((target != nil && crowd == 1) ||
 			(target == nil && foe.ID == b.duelID && crowd == 0 && now-b.duelSeen < 1))
-		if duel {
+		counterRange, counter := matchupRange(me, foe, light, laser, crowd)
+		if b.pracOn && target != nil && counter {
+			mx, my = b.fightMoveAt(o, foe, seen, 1, counterRange)
+			boost = foe.Dist > counterRange+5 && light != nil && me.Energy > 45
+		} else if duel {
 			if target != nil {
 				b.duelID, b.duelSeen = foe.ID, now
 			}
@@ -787,7 +791,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 			boost = true
 		}
 		mode = "fight"
-		if !duel && b.P.FightLoot > 0 {
+		if !duel && !(b.pracOn && counter) && b.P.FightLoot > 0 {
 			r := b.P.FightLoot
 			if hpFrac <= 0.5 {
 				r *= 0.57
@@ -1956,6 +1960,24 @@ func (b *Brain) odds(me *Self, t *Track, now float64, opening bool) float64 {
 		}
 	}
 	return 1 / (1 + math.Exp(-z))
+}
+
+// Lightning cancels laser charge for two seconds. Enter its cone against
+// an isolated laser, or preserve a buffer when the matchup is reversed.
+func matchupRange(me *Self, foe *Track, light, laser *WeaponState, crowd int) (float64, bool) {
+	if crowd != 1 || !foe.LOS {
+		return 0, false
+	}
+	if light != nil && holds(foe.Weapons, "laser") && !holds(foe.Weapons, "lightning") && me.HP >= me.MaxHP*0.55 && me.Energy >= 6*light.Stats.Energy {
+		reach := light.Stats.Range - 6
+		if reach > 0 && foe.Dist <= reach+me.Stats.BoostSpeed*1.1 {
+			return reach, true
+		}
+	}
+	if laser != nil && light == nil && holds(foe.Weapons, "lightning") && foe.Dist < 66 {
+		return 72, true
+	}
+	return 0, false
 }
 
 func squadParams(p Params) Params {
