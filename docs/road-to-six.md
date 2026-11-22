@@ -10,8 +10,8 @@ Start each branch at `8f7f9b8` so its result can be compared directly with the s
 
 | Experiment | Owner | Branch or PR | Status |
 | --- | --- | --- | --- |
-| 1. Choose the next fighting position | Open | — | Proposed |
-| 2. Predict both sides of a duel | Open | — | Proposed |
+| 1. Choose the next fighting position | Advit | `claude/nifty-galileo-lw5l5t` `7294ba0` (= `768b8a3` + Corner 15 s) | Ready to submit |
+| 2. Predict both sides of a duel | Advit | `claude/nifty-galileo-lw5l5t` `c430120` (= `768b8a3` + DuelBoth) | Ready to submit |
 | 3. Recover between hunters | Advit | `claude/nifty-galileo-lw5l5t` `768b8a3` | **5.75**, new best |
 
 ## 1. Choose the next fighting position
@@ -45,3 +45,8 @@ Before submitting, run the repo's protocol and timing checks and coordinate a sc
 
 **Note (Advit):** `8f7f9b8` is built on `515bce5`, not `robust`, so it lost robust's FFA-detector fix (an NPC kill counted as a mech
 kill can hide other mechs' deaths and keep giddy in its aggressive practice settings in the final). The #3 commit restores it.
+
+**Advit's builds (all on `768b8a3`, 5.75, one change each):** #1 `7294ba0` Corner: after a kill with nobody in sight (duel phase),
+hold a nearby spot with clearly lower `World.Exposure` for 15 s. #2 `c430120` DuelBoth: break sight when the foe's estimated time
+to kill us (its weapons, cubes, house-bot accuracy) beats our finish at 70 % hits, unless our finish is under 1.2 s. #3 tuning:
+HealGate from 200 s `5722027`.
