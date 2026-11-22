@@ -169,3 +169,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `871b8e0` | 5.54 (builders-4) | 8621477 + practice `FightLoot = 60` (was 40). -0.30: 40 m stays (0 m 5.15, 60 m 5.54). |
 | Sun | `0906a90` | 5.44 (builders-4) | 8621477 + ModeDetect (deaths, 6 s credit) + ZoneLock + 60 s practice target lock. -0.40. Parts untested alone: ModeDetect alone `22b086d`. |
 | Sun | `22b086d` | 5.11 (builders-4) | 8621477 + ModeDetect alone (FFA only after 5 uncredited deaths, 6 s credit). -0.73: giddy's quick flip to careful settings after any unexplained death HELPS in practice (likely late zone deaths). |
+| Sun | `84780e6` | 5.65 (builders-4) | 8621477 + Codex gun/laser timing (more gun aim time during a charge, early release before cover). -0.19: neutral. |
