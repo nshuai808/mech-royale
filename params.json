@@ -4,13 +4,7 @@
     "enabled": true
   },
   "drops": {
-    "enabled": true,
-    "self_threat_radius_m": 0,
-    "threat_cost": 0.2,
-    "contested_cost": 0.3,
-    "min_utility": 0.25,
-    "max_dist_m": 350,
-    "late_s": 35
+    "enabled": true
   },
   "roof": {
     "_note": "roof.py: from start_s, climb a roof inside the next circle and hold it (stand back from the edges)",
@@ -20,17 +14,5 @@
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
     "enabled": true
-  },
-  "ultra": {
-    "_note": "aggressive A: flee < 25% vs 2+; hunt at >= 60% HP; no third-party cover; keep gun; loot bodies; drones 250 m",
-    "enabled": true,
-    "flee_hp": 0.25,
-    "hunt_hp": 0.6,
-    "hop": false,
-    "third_party_cover": false
-  },
-  "pacifist": {
-    "_note": "EXPERIMENT: never shoot mechs, hide from all threats, farm, final centre. Measures points without kills.",
-    "enabled": false
   }
 }

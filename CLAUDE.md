@@ -58,7 +58,14 @@ The final is a real free-for-all against other teams: there, survival and placem
 - Never force-push or delete a submitted commit; the repo must stay public until results are out.
 - Freeze by **Sun 9:00 AM ET**; cutoff **Sun 11:00 AM ET**.
 
-## Bot architecture (`main`)
+## Bot on `main` (since `515bce5`, real **5.73**)
+`main` runs **giddygiddyboy's MIT Go bot** in `giddy/` (license and our change table in `giddy/README.md`), built by the
+top-level `Dockerfile`. Why: `docs/leaderboard_study.md`. Everything we learned before the switch: **`docs/LEARNINGS.md`**.
+Build/check locally (no Go installed system-wide; download the Go zip to a scratch folder):
+`cd giddy && go build -o mechbot ./cmd/bot`, then `python kit/check/check.py -- giddy/mechbot`, `tools/replay.py`, `tools/sim.py`
+all take the binary as the bot command. Improvements go on branches as small changes in `giddy/`, one per submission.
+
+## Old Python bot architecture (in the repo, not in the image; best real 3.71 at `6bb23c4`)
 - `nav.py`: 2 m grids (walls incl. steep terrain, sight blockers, nav = walls grown 1 cell), rays, LOS,
   `find_cover`, incremental `AStar` (time-budgeted per tick). Builds in ~0.3 s at hello.
 - `bot.py` modes, in priority: zone (committed once started) > evade (2+ enemies can see us, or losing) >
@@ -87,7 +94,6 @@ Difference is inside the noise (s.e. ~0.18). Drop captures 12 vs 8 matches. The 
 "stuck in a pocket without jets" artifact or late-game runs that still placed better than main.
 
 ## Status / next steps
-- **Real-score facts (Sun):** pacifist 0.08 -> practice points are ONLY our kills (house bots never die otherwise, hiding never survives). Loot/farming helped (+0.5 total); aggression alone ~neutral; never-flee and roof camping hurt.
 - [x] Repo set up from the Python starter.
 - [x] Logging harness, simulator, fuzz test.
 - [x] Survival bot v2: **real practice score 2.92** (starter 1.15, leader at the time 1.75). Now on `main`.
@@ -101,3 +107,8 @@ Difference is inside the noise (s.e. ~0.18). Drop captures 12 vs 8 matches. The 
 - [x] `eed4dc6` (`v2-zone-drops`, built on `v2-integrated`) scored **0.73** real. Don't build on `v2-integrated`.
 - [x] `claude/nifty-galileo-lw5l5t`: main's bot + `zone.py` (CRITICAL forces a zone run) + `drops.py` (replaces `_good_drop`;
       holding a ring we capture outranks evade/fight), `params.json` knobs. Tests/check/fuzz pass. Sim neutral vs main. **Real 3.02** (new best).
+- [x] Sat: Python bot peaked at **3.71** (`integ-3` = `6bb23c4`); 4 big swings after it all scored lower (3.02-3.65).
+      Lessons in `docs/LEARNINGS.md`: disengaging / firing less / leaving cover lost; the calibrated sim's gains didn't transfer.
+- [x] Sat: switched `main` to giddygiddyboy's MIT Go bot (`giddy/`): `515bce5` scored **5.73** (new best). Default sim agrees
+      (2.83 / 2.88 vs integ-3 1.83 / 1.25). Top of the board is 6.2-6.44, mostly tuned copies of the same bot.
+- [ ] Improve on the giddy base: FFA behavior for the final, then small execution fixes (see `docs/LEARNINGS.md` section 6).

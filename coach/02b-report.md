@@ -1,0 +1,1 @@
+**0.70 remains in place.** I verified that `t2-heal-gate` is clean at `585b8e8`. The read-only sandbox blocked changing the parameter and recording replays, so all four 0.85 runs are pending. No tuning verdict, commit, or bundle was produced.

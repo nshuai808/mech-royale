@@ -1,0 +1,4 @@
+- **FFA seed 3:** 13.06 off → 11.31 on (−1.75). **Seed 4:** 11.75 → 12.88 (+1.13). Each used 16 matched pairs.
+- **Pooled seeds 1–4:** 12.80 off → 12.22 on. Across 64 pairs, the mean difference was **−0.58 points per match (SE 0.50)**. The estimate remains negative, with substantial uncertainty.
+- **Replay pattern:** Gun deaths before 30 s rose from 7 to 12. Six newly early deaths cost 59 points, and one avoided early death gained 13. That’s a net −46 points against the overall −37.
+- All six newly early deaths involved multiple attackers. In zero of six did the replay show the guard withholding a near-ready shot at the eventual killer before that mech first hit us. [Replay counts](C:/Users/natha/Downloads/mech-royale-t5/replays/t7/ffa-confirmation.txt)
