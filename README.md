@@ -150,3 +150,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `77b3f7d` | 5.30 (builders-4) | e48ac24 with HealGate below 70 % (was 60 %). -0.27 vs e48ac24: a higher bar turns down too many fights. |
 | Sun | `77e6758` | 5.51 (builders-4) | e48ac24 with HealGate from 120 s (was 150 s). Tie with e48ac24 (5.57); heal-gate tuning done. |
 | Sun | `768b8a3` | **5.75 (builders-4)** | road-to-six #3: duel bot `8f7f9b8` + laser-first upgrades + HealGate 0.6 from 150 s + robust FFA fix. **+0.17 vs 8f7f9b8 (5.58); new best. 33rd, 0.01 off the top 32.** |
+| Sun | `7294ba0` | 5.48 (builders-4) | road-to-six #1 on 768b8a3: Corner (hold a low-exposure spot 15 s after a kill). -0.27: dropped. |

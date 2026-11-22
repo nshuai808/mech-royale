@@ -10,7 +10,7 @@ Start each branch at `8f7f9b8` so its result can be compared directly with the s
 
 | Experiment | Owner | Branch or PR | Status |
 | --- | --- | --- | --- |
-| 1. Choose the next fighting position | Advit | `claude/nifty-galileo-lw5l5t` `7294ba0` (= `768b8a3` + Corner 15 s) | Ready to submit |
+| 1. Choose the next fighting position | Advit | `claude/nifty-galileo-lw5l5t` `7294ba0` (= `768b8a3` + Corner 15 s) | 5.48: worse, dropped |
 | 2. Predict both sides of a duel | Advit | `claude/nifty-galileo-lw5l5t` `c430120` (= `768b8a3` + DuelBoth) | Ready to submit |
 | 3. Recover between hunters | Advit | `claude/nifty-galileo-lw5l5t` `768b8a3` | **5.75**, new best |
 
