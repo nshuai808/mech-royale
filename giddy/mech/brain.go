@@ -1935,6 +1935,7 @@ func squadParams(p Params) Params {
 	p.Lethal = true
 	p.Finish = 20
 	p.FightLoot = 40
+	p.UseDrops = true // umich-ibe: Practice: take supply drops (3 cubes + full HP/energy)
 
 	return p
 }

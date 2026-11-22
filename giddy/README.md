@@ -12,6 +12,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | File | Change |
 | --- | --- |
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
+| `mech/brain.go` `squadParams` | `p.UseDrops = true`: Practice: take supply drops (3 cubes + full HP/energy) |
 
 Everything else is unchanged. Any later change goes in this table.
 
