@@ -1936,7 +1936,6 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.CubeGoal = 21
 	p.FightLoot = 70
-	p.FightLoot = 40
 
 	return p
 }
