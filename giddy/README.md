@@ -16,7 +16,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `mech/brain.go` `upgradeOrderLaser` | practice only: laser_damage, laser_charge before plating, armor |
 | `mech/brain.go` | `HealGate`/`HealFrom` (practice only, 0.6 from 150 s): below 60 % HP don't start a fight with a foe that isn't shooting us, isn't within 45 m, isn't below 30 % HP and isn't our current target (road-to-six #3) |
 | `mech/brain.go` `observe` | robust's FFA-detector fix: an NPC kill doesn't count as a mech kill (no practice effect) |
-| `mech/brain.go` `DefaultParams` | giddy's `Opening` mode on: before the practice switch (first 20 s, until another mech dies), seek a laser to 240 m and loot to 150 m |
+| `mech/brain.go` | regen guard: inside the HealGate band (from 150 s, below 60 % HP) skip optional NPC/crate shots (they reset the 5 s regen wait); NPCs attacking us are still shot |
 
 Everything else is unchanged. Any later change goes in this table.
 

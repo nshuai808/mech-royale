@@ -159,7 +159,6 @@ func DefaultParams() Params {
 		Peek: true, LaserFirst: false, CrowdHide: true, Practice: true}
 
 	p.LaserFirst = true
-	p.Opening = true // umich-ibe: giddy's opening mode: before the practice switch, seek a laser to 240 m, loot to 150 m
 
 	return p
 }
@@ -958,7 +957,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 		tp = *farmPos
 		shootable = true
 	}
-	if !isMech && target == nil && (b.retreat || hpFrac < 0.5) && !b.P.Econ && !defend {
+	// umich-ibe: inside the HealGate band (from HealFrom, below HealGate) an optional NPC/crate shot would reset regen
+	gated := b.P.HealGate > 0 && now >= b.P.HealFrom && hpFrac < b.P.HealGate
+	if !isMech && target == nil && (b.retreat || hpFrac < 0.5 || gated) && !b.P.Econ && !defend {
 		shootable = false
 	}
 
