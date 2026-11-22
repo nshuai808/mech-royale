@@ -2,16 +2,19 @@
 # The match runs it with no network, a read-only root (writable /tmp, 64 MB), 1 CPU, 512 MB,
 # as uid 65534, with the map mounted read-only at /arena.
 #
-# Runs the Go bot in giddy/: giddygiddyboy's MIT-licensed Mech Royale bot (see giddy/LICENSE and
-# giddy/README.md). Our earlier Python bot (bot.py and friends) stays in the repo but is not in this image.
-# Base image pinned by digest so finalist rebuilds are identical.
-FROM golang:1.26.1-bookworm@sha256:ab3d6955bbc813a0f3fdf220c1d817dd89c0b3f283777db8ece4a32fe7858edd AS build
+# Runs the Go bot in zoro/: Team Sulertia's "V2" fork (TEMOtkesh/mech-royale-bot, branch v2, 6da1573) of
+# Specz04's zoro, both MIT licensed (see zoro/LICENSE and zoro/README.md). Only change: the bot name.
+# giddy/ (our previous entry) and the Python bot stay in the repo but are not in this image.
+# Toolchain image pinned by digest (the one zoro's own Dockerfile uses) so finalist rebuilds are identical.
+FROM golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb AS build
 WORKDIR /src
-COPY giddy/go.mod ./
-COPY giddy/mech ./mech
-COPY giddy/cmd/bot ./cmd/bot
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /mechbot ./cmd/bot
+COPY zoro/go.mod ./
+COPY zoro/cmd ./cmd
+COPY zoro/internal ./internal
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOTOOLCHAIN=local
+RUN go build -trimpath -ldflags="-s -w" -o /out/zoro ./cmd/zoro
 
 FROM scratch
-COPY --from=build /mechbot /mechbot
-ENTRYPOINT ["/mechbot"]
+COPY --from=build /out/zoro /zoro
+USER 65534:65534
+ENTRYPOINT ["/zoro"]
