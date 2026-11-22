@@ -154,3 +154,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `5722027` | 5.51 (builders-4) | 768b8a3 with HealGate from 200 s (was 150 s). -0.24: 150 s stays. |
 | Sun | `c430120` | 5.40 (builders-4) | road-to-six #2 on 768b8a3: DuelBoth (break sight when the foe would win the trade). -0.35: dropped. All three road-to-six ideas tested; only #3 (768b8a3, 5.75) kept. |
 | Sun | `f62bdcd` | 5.55 (builders-4) | 768b8a3 with duel-phase logic from 60 s (was 150 s). -0.20: duel logic stays at 150 s. |
+| Sun | `cf0611d` | 5.45 (builders-4) | 768b8a3 with HealGate below 50 % (was 60 %). -0.30: 60 % stays (50 % 5.45, 70 % 5.30). |
