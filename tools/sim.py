@@ -74,8 +74,58 @@ class Mech:
         self.path, self.path_t, self.strafe, self.strafe_t = None, -9.0, 1, 0.0
 
 
+class Ext:
+    """An opponent that is a real bot process (clone arena): same protocol, same observations, same time budget."""
+
+    def __init__(self, cmd):
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=ROOT)
+        self.q = queue.Queue()
+        self.last, self.last_ok_t, self.late = {}, 0.0, 0
+
+        def out():
+            for raw in self.proc.stdout:
+                self.q.put(raw)
+            self.q.put(None)
+        threading.Thread(target=out, daemon=True).start()
+
+    def send(self, msg):
+        try:
+            self.proc.stdin.write((json.dumps(msg, separators=(",", ":")) + "\n").encode())
+            self.proc.stdin.flush()
+            return True
+        except (BrokenPipeError, OSError):
+            return False
+
+    def recv(self, tick, timeout):
+        end = time.perf_counter() + timeout
+        while True:
+            left = end - time.perf_counter()
+            if left <= 0:
+                return None
+            try:
+                raw = self.q.get(timeout=left)
+            except queue.Empty:
+                return None
+            if raw is None:
+                return None
+            try:
+                m = json.loads(raw)
+            except ValueError:
+                continue
+            if tick is None or m.get("tick") == tick:
+                return m
+
+    def close(self, place, kills):
+        self.send({"type": "end", "place": place, "kills": kills})
+        try:
+            self.proc.stdin.close()
+            self.proc.wait(timeout=3)
+        except Exception:
+            self.proc.kill()
+
+
 class Sim:
-    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False, drop_rivals=0.5, ffa=False):
+    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False, drop_rivals=0.5, ffa=False, clones=0, clone_cmd=None):
         self.cfg, self.map, self.rng = cfg, mp, random.Random(seed)
         random.seed(seed)
         self.bot_cmd, self.out, self.verbose = bot_cmd, out, verbose
@@ -86,6 +136,7 @@ class Sim:
         self.bullets = []
         self.sounds = []        # (t, x, y, kind, by)
         self.drops, self.drop_rivals, self.ffa = [], drop_rivals, ffa
+        self.clones, self.clone_cmd = (clones if clone_cmd else 0), clone_cmd
         self.drop_cfg = cfg.get("drops") or {}
         self.drop_times = list(self.drop_cfg.get("times") or [])
         self._zone_init()
@@ -556,12 +607,52 @@ class Sim:
             if tick is None or m.get("tick") == tick:
                 return m, None
 
+    @staticmethod
+    def _apply(m, a):
+        mv = a.get("move") or [0, 0]
+        m.move = (float(mv[0]), float(mv[1]))
+        m.boost = bool(a.get("boost"))
+        if "aim" in a:
+            m.cmd_yaw, m.cmd_pitch = float(a["aim"][0]), float(a["aim"][1])
+        f = a.get("fire") or [False, False]
+        m.fire = bool(f[0]) if f else False
+
+    def _start_clones(self, budget_ms):
+        """Turn the first `clones` house slots (in roster order, weakest first) into real bot processes."""
+        self.ext = {}
+        house = [m for m in self.mechs if m is not self.me][: self.clones]
+        for m in house:
+            e = Ext(self.clone_cmd)
+            e.send({"type": "hello", "protocol": "mechfight/1", "slot": m.id, "seed": self.rng.randrange(2 ** 31),
+                    "map": {"dir": os.path.join(ROOT, "kit", "arena"), "files": ["v2/world.json", "v2/terrain.i16"]},
+                    "config": self.cfg})
+            self.ext[m.id] = e
+        for e in self.ext.values():
+            e.recv(None, 20)
+
+    def _clone_step(self, m, budget_ms):
+        e = self.ext[m.id]
+        o = self.observe(m)
+        e.send(o)
+        a = e.recv(o["tick"], budget_ms / 1000)
+        if a is None:
+            e.late += 1
+            if self.t - e.last_ok_t > self.cfg["bot"]["coast_s"]:
+                e.last = {}
+            a = {k: e.last[k] for k in ("move", "aim", "boost") if k in e.last}
+        else:
+            e.last, e.last_ok_t = a, self.t
+        self._apply(m, a)
+
     # ------------------------------------------------------------------ run
     def run(self, budget_ms=50.0):
         self.log = rl.Writer(self.out) if self.out else None
         if self.log:
             self.log.write("meta", {"tool": "sim", "cmd": self.bot_cmd})
         self._start_bot()
+        self.ext = {}
+        if self.clones:
+            self._start_clones(budget_ms)
         hello = {"type": "hello", "protocol": "mechfight/1", "slot": self.me_slot, "seed": self.rng.randrange(2 ** 31),
                  "map": {"dir": os.path.join(ROOT, "kit", "arena"), "files": ["v2/world.json", "v2/terrain.i16"]}, "config": self.cfg}
         self._send(hello)
@@ -577,7 +668,10 @@ class Sim:
                 squad_sees = any(self.sees(h, self.me) for h in self.mechs if h is not self.me and h.alive)
                 for m in self.mechs:
                     if m.alive and m is not self.me:
-                        self._house(m, hunters, squad_sees)
+                        if m.id in self.ext:
+                            self._clone_step(m, budget_ms)
+                        else:
+                            self._house(m, hunters, squad_sees)
                 if self.me.alive:
                     o = self.observe(self.me)
                     sent = time.perf_counter()
@@ -594,14 +688,7 @@ class Sim:
                             self.log.write("out", a, lat_ms=round(lat, 2))
                         last_ok_t = self.t
                         last_cmd = a
-                    me = self.me
-                    mv = a.get("move") or [0, 0]
-                    me.move = (float(mv[0]), float(mv[1]))
-                    me.boost = bool(a.get("boost"))
-                    if "aim" in a:
-                        me.cmd_yaw, me.cmd_pitch = float(a["aim"][0]), float(a["aim"][1])
-                    f = a.get("fire") or [False, False]
-                    me.fire = bool(f[0]) if f else False
+                    self._apply(self.me, a)
             for m in self.mechs:
                 if m.alive:
                     self._move(m)
@@ -632,6 +719,10 @@ class Sim:
         me = self.me
         end = {"type": "end", "place": me.place, "kills": me.kills}
         self._send(end)
+        for mid, e in self.ext.items():
+            c = self.mechs[mid]
+            e.close(c.place or 1, c.kills)
+        self.clone_late = sum(e.late for e in self.ext.values())
         try:
             self.proc.stdin.close()
             self.proc.wait(timeout=3)
@@ -640,8 +731,10 @@ class Sim:
         if self.log:
             time.sleep(0.05)
             self.log.close()
-        cause = "survived" if me.alive else ("zone" if getattr(me, "killer", None) is None else f"#{me.killer.id} ({me.killer.skill})")
-        return {"place": me.place, "kills": me.kills, "drops": getattr(self, "me_drops", 0), "t": round(getattr(me, "dead_t", self.t), 1), "cause": cause, "late": late, "errs": self.errs[-5:]}
+        cause = "survived" if me.alive else ("zone" if getattr(me, "killer", None) is None else
+                 f"#{me.killer.id} ({'clone' if me.killer.id in self.ext else me.killer.skill})")
+        return {"place": me.place, "kills": me.kills, "drops": getattr(self, "me_drops", 0), "t": round(getattr(me, "dead_t", self.t), 1), "cause": cause, "late": late, "errs": self.errs[-5:],
+                "clone_late": getattr(self, "clone_late", 0), "zone_deaths": sum(1 for m in self.mechs if not m.alive and getattr(m, "killer", 1) is None)}
 
 
 def main():
@@ -656,6 +749,8 @@ def main():
     ap.add_argument("--record", action="store_true", help="write a replay file per match into replays/")
     ap.add_argument("--budget-ms", type=float, default=50.0)
     ap.add_argument("--ffa", action="store_true", help="free-for-all: house bots fight each other (head-to-head stand-in)")
+    ap.add_argument("--clones", type=int, default=0, help="clone arena: this many opponents are real bot processes (--clone-cmd)")
+    ap.add_argument("--clone-cmd", default=None, help="command for the clone opponents, e.g. giddy's binary (default: our bot)")
     ap.add_argument("--drop-rivals", type=float, default=0.5, help="chance a house bot goes for each supply drop")
     a = ap.parse_args(argv[:i])
     cmd = argv[i + 1:]
@@ -667,10 +762,12 @@ def main():
     for n in range(a.first, a.first + a.matches):
         seed = a.seed * 1000 + n
         out = os.path.join(rl.REPLAYS, f"sim-s{seed}.jsonl.gz") if a.record else None
-        r = Sim(cfg, mp, seed, cmd, out, drop_rivals=a.drop_rivals, ffa=a.ffa).run(a.budget_ms)
+        r = Sim(cfg, mp, seed, cmd, out, drop_rivals=a.drop_rivals, ffa=a.ffa,
+                clones=a.clones, clone_cmd=(a.clone_cmd.split() if a.clone_cmd else cmd)).run(a.budget_ms)
         pts.append(16 - r["place"])
         print(f"match {n + 1:2} seed {seed}: place {r['place']:2} ({16 - r['place']:2} pts)  died {r['cause']:16} at {r['t']:5.1f}s  kills {r['kills']}  drops {r['drops']}"
-              + (f"  late {r['late']}" if r["late"] else "") + (f"  stderr: {r['errs'][-1]}" if r["errs"] else ""), flush=True)
+              + (f"  late {r['late']}" if r["late"] else "") + (f"  clone-late {r['clone_late']}" if r["clone_late"] else "")
+              + f"  zone-deaths {r['zone_deaths']}" + (f"  stderr: {r['errs'][-1]}" if r["errs"] else ""), flush=True)
     mean = sum(pts) / len(pts)
     sd = (sum((p - mean) ** 2 for p in pts) / max(1, len(pts) - 1)) ** 0.5
     print(f"SCORE {mean:.2f}  (+-{sd / max(1, len(pts)) ** 0.5:.2f} s.e., {len(pts)} matches, {time.time() - t0:.0f} s)")
