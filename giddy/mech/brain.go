@@ -1963,7 +1963,7 @@ func squadParams(p Params) Params {
 	p.Peek = false
 	p.LaserFirst = true
 	p.LaserRange = 120
-	p.LootRadius = 150
+	p.LootRadius = 200 // umich-ibe: loot within 200 m (was 150)
 	p.CrateUntil = 1e9
 	p.Stick = 120
 	p.HPw = 0.2
@@ -1971,7 +1971,7 @@ func squadParams(p Params) Params {
 	p.MaxTarget = 240
 	p.LoseRule = true
 	p.FightLoot = 70
-	p.FarmHP = 0.35 // umich-ibe: farm NPCs/crates down to 35 % HP (was 50 %)
+	p.FarmHP = 0.5
 
 	p.LaserSeek = 240
 	p.LaserUp = true
