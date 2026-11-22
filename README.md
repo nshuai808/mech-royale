@@ -144,3 +144,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `eed4dc6` | (accidental resubmit) | old v2-zone-drops Python bot; not an entry. |
 | Sun | `39847d4` | 5.30 (builders-4) | robust + laser-first upgrades + LaserHold + HealGate 0.6 from 150 s. -0.16 vs ~5.46 baseline (noise). |
 | Sun | `e48ac24` | **5.57 (builders-4)** | robust + laser-first upgrades + HealGate 0.6 from 150 s (no LaserHold). +0.11 vs ~5.46 baseline: best on builders-4 so far, inside the ±0.18 noise. |
+| Sun 2:08 AM | `8f7f9b8` | **5.58 (builders-4)** | Mid-game duel health trades. Selected final entry BB-250F80CF. +0.12 vs the rescored 5.46 baseline. |
