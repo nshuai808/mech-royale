@@ -125,3 +125,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `e9f6823` | not scored yet | branch: aggressive A. |
 | Sat 10:06 PM | `b08b466` | 5.73 | `v-cubes21`: practice mode collects cubes to 21, not 10. **Identical to base**: no behavior change in any of the 48 matches, so the bot never reached 10 cubes. Cube income, not the cap, is the gap. |
 | Sat 10:09 PM | `23ad2f9` | 5.73 | `v-cubes45`: cubes to 45. Identical to base, same reason. |
+| Sat 10:22 PM | `5de6212` | 5.25 | Swing `s-all`: Econ + Explore + FightLoot 70 + NanoUp (practice mode). -0.48 vs base: the stack hurts. Leave-one-outs `s-no-econ`, `s-no-explore`, `s-no-fightloot` pending to find which. |
