@@ -11,7 +11,7 @@ written to its own gzip file, `<UTC time>-seed<seed>.jsonl.gz`, from its header 
 without a result line means the stream dropped mid-match. Reconnects on its own (like the page, every
 second). Read the files with tools/feed_analyze.py.
 
-Runs on any machine with Python 3.8+. Not from a cloud session whose proxy can't upgrade to WebSocket.
+Runs on any machine with Python 3.8+. Uses HTTPS_PROXY (CONNECT tunnel) when set, e.g. in a cloud session.
 """
 import argparse
 import base64
@@ -38,8 +38,24 @@ class WS:
         self.host, secure = u.hostname, u.scheme == "wss"
         port = u.port or (443 if secure else 80)
         path = (u.path or "/") + (("?" + u.query) if u.query else "")
-        raw = socket.create_connection((self.host, port), timeout=timeout)
-        self.sock = ssl.create_default_context().wrap_socket(raw, server_hostname=self.host) if secure else raw
+        proxy = urlparse(os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or "") if secure else None
+        if proxy and proxy.hostname:
+            # through an HTTP proxy: CONNECT tunnel, then TLS and the upgrade inside it
+            raw = socket.create_connection((proxy.hostname, proxy.port or 80), timeout=timeout)
+            raw.sendall(f"CONNECT {self.host}:{port} HTTP/1.1\r\nHost: {self.host}:{port}\r\n\r\n".encode())
+            resp = b""
+            while b"\r\n\r\n" not in resp:
+                chunk = raw.recv(4096)
+                if not chunk:
+                    raise ConnectionError("proxy closed during CONNECT")
+                resp += chunk
+            if b" 200 " not in resp.split(b"\r\n", 1)[0] + b" ":
+                raise ConnectionError("proxy refused: " + resp.split(b"\r\n", 1)[0].decode("latin-1"))
+        else:
+            raw = socket.create_connection((self.host, port), timeout=timeout)
+        ctx = ssl.create_default_context(cafile=os.environ.get("SSL_CERT_FILE")) if secure else None
+        self.sock = ctx.wrap_socket(raw, server_hostname=self.host) if secure else raw
+        self.sock.settimeout(None)
         key = base64.b64encode(os.urandom(16)).decode()
         origin = ("https://" if secure else "http://") + self.host
         req = (f"GET {path} HTTP/1.1\r\nHost: {self.host}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
