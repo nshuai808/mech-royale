@@ -75,7 +75,7 @@ class Mech:
 
 
 class Sim:
-    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False, drop_rivals=0.5, ffa=False, calm=1.0, shy=0.0):
+    def __init__(self, cfg, mp, seed, bot_cmd, out=None, verbose=False, drop_rivals=0.5, ffa=False, calm=1.0, shy=0.0, aim_mult=1.0, calm_watchers=False):
         self.cfg, self.map, self.rng = cfg, mp, random.Random(seed)
         random.seed(seed)
         self.bot_cmd, self.out, self.verbose = bot_cmd, out, verbose
@@ -87,6 +87,9 @@ class Sim:
         self.sounds = []        # (t, x, y, kind, by)
         self.drops, self.drop_rivals, self.ffa = [], drop_rivals, ffa
         self.calm = calm      # --ffa-calm: house-vs-house damage scale (longer FFA matches)
+        # calibration (opt-in, defaults = the original sim): practice house-bot aim noise x aim_mult; with calm_watchers
+        # a house bot that isn't one of the current hunters only shoots us within 5 s of being hit by us
+        self.aim_mult, self.calm_watchers = aim_mult, calm_watchers
         self.shy = shy        # --ffa-shy: fraction of house bots that camp (stand-in for cautious rival teams)
         self.drop_cfg = cfg.get("drops") or {}
         self.drop_times = list(self.drop_cfg.get("times") or [])
@@ -276,6 +279,8 @@ class Sim:
                 amount *= self.cfg["mech"]["rear_mult"]
                 rear = True
             src.last_combat = self.t
+            if src is self.me:
+                victim.provoked_t = self.t
             src.events.append({"type": "hit", "target": victim.id, "amount": amount, "weapon": weapon, **({"rear": True} if rear else {})})
         victim.hp -= amount
         victim.last_combat = self.t
@@ -291,6 +296,7 @@ class Sim:
             victim.killer = src
             if src is not None:
                 src.kills += 1
+                src.kill_ts = getattr(src, 'kill_ts', []) + [self.t]
                 src.events.append({"type": "kill", "target": victim.id})
 
     def _upkeep(self, m):
@@ -441,12 +447,13 @@ class Sim:
         m.move = want or (0.0, 0.0)
         m.boost = False
         m.fire = False
-        if me.alive and (sees or (hunting and squad_sees_me and d < 120 and self.map.los(mx, my, me.x, me.y))):
+        watcher_ok = (not self.calm_watchers or hunting or self.t - getattr(m, 'provoked_t', -99.0) < 5.0)
+        if me.alive and watcher_ok and (sees or (hunting and squad_sees_me and d < 120 and self.map.los(mx, my, me.x, me.y))):
             g = self.cfg["weapons"]["gun"]
             mz = m.z + self.cfg["mech"]["muzzle_height"]
             tt = d / g["speed"]
             lx, ly = me.x + me.vx * tt, me.y + me.vy * tt
-            noise = SKILL[m.skill]
+            noise = SKILL[m.skill] * self.aim_mult
             if self.tick % 10 == 0:
                 m.aim_noise = (self.rng.gauss(0, noise), self.rng.gauss(0, noise * 0.5))
             nz = getattr(m, "aim_noise", (0.0, 0.0))
@@ -662,7 +669,7 @@ class Sim:
             time.sleep(0.05)
             self.log.close()
         cause = "survived" if me.alive else ("zone" if getattr(me, "killer", None) is None else f"#{me.killer.id} ({me.killer.skill})")
-        return {"place": me.place, "kills": me.kills, "drops": getattr(self, "me_drops", 0), "t": round(getattr(me, "dead_t", self.t), 1), "cause": cause, "late": late, "errs": self.errs[-5:]}
+        return {"place": me.place, "kills": me.kills, "drops": getattr(self, "me_drops", 0), "t": round(getattr(me, "dead_t", self.t), 1), "cause": cause, "late": late, "errs": self.errs[-5:], "kill_ts": getattr(me, "kill_ts", [])}
 
 
 def main():
@@ -679,6 +686,8 @@ def main():
     ap.add_argument("--ffa", action="store_true", help="free-for-all: house bots fight each other (head-to-head stand-in)")
     ap.add_argument("--ffa-calm", type=float, default=1.0, help="--ffa: scale house-vs-house damage (e.g. 0.3 = cautious rivals, long matches)")
     ap.add_argument("--ffa-shy", type=float, default=0.0, help="--ffa: fraction of house bots that camp near the circle center and only fight within 80 m")
+    ap.add_argument("--aim-mult", type=float, default=1.0, help="calibration: practice house-bot aim noise multiplier (1 = original)")
+    ap.add_argument("--calm-watchers", action="store_true", help="calibration: only current hunters (or bots we just hit) shoot us")
     ap.add_argument("--drop-rivals", type=float, default=0.5, help="chance a house bot goes for each supply drop")
     a = ap.parse_args(argv[:i])
     cmd = argv[i + 1:]
@@ -686,14 +695,21 @@ def main():
     with gzip.open(rl.KIT_STREAM, "rt") as f:
         cfg = json.loads(f.readline())["config"]
     mp = Map(os.path.join(ROOT, "kit", "arena"), cfg["mech"]["height"], cfg["mech"]["step_up"], cfg["mech"]["max_slope_deg"], cfg["mech"]["eye_height"])
-    pts, t0 = [], time.time()
+    pts, kts, alive_t, t0 = [], [], [], time.time()
     for n in range(a.first, a.first + a.matches):
         seed = a.seed * 1000 + n
         out = os.path.join(rl.REPLAYS, f"sim-s{seed}.jsonl.gz") if a.record else None
-        r = Sim(cfg, mp, seed, cmd, out, drop_rivals=a.drop_rivals, ffa=a.ffa, calm=a.ffa_calm, shy=a.ffa_shy).run(a.budget_ms)
+        r = Sim(cfg, mp, seed, cmd, out, drop_rivals=a.drop_rivals, ffa=a.ffa, calm=a.ffa_calm, shy=a.ffa_shy,
+                aim_mult=a.aim_mult, calm_watchers=a.calm_watchers).run(a.budget_ms)
         pts.append(16 - r["place"])
+        kts.append(r.get("kill_ts", []))
+        alive_t.append(r["t"])
         print(f"match {n + 1:2} seed {seed}: place {r['place']:2} ({16 - r['place']:2} pts)  died {r['cause']:16} at {r['t']:5.1f}s  kills {r['kills']}  drops {r['drops']}"
               + (f"  late {r['late']}" if r["late"] else "") + (f"  stderr: {r['errs'][-1]}" if r["errs"] else ""), flush=True)
+    if kts:   # real-practice comparison (probe submissions): kills by 150 s / 300 s, and survival
+        k = lambda T: sum(sum(1 for t in ks if t <= T) for ks in kts) / len(kts)
+        print(f"TIMELINE kills by 150s {k(150):.2f}  by 300s {k(300):.2f}  total {k(1e9):.2f}  "
+              f"alive at 150s {sum(t > 150 for t in alive_t)}/{len(alive_t)}  at 300s {sum(t > 300 for t in alive_t)}/{len(alive_t)}")
     mean = sum(pts) / len(pts)
     sd = (sum((p - mean) ** 2 for p in pts) / max(1, len(pts) - 1)) ** 0.5
     print(f"SCORE {mean:.2f}  (+-{sd / max(1, len(pts)) ** 0.5:.2f} s.e., {len(pts)} matches, {time.time() - t0:.0f} s)")
