@@ -335,7 +335,7 @@ func (b *Brain) observe(o *Obs) {
 	if b.otherDead >= 5 {
 		b.notPractice = true
 	}
-	if on := b.base.Practice && !b.notPractice && now > 5; on != b.pracOn {
+	if on := b.base.Practice && !b.notPractice && now > 1; on != b.pracOn {
 		b.pracOn = on
 		b.P = b.base
 		if on {
@@ -1963,7 +1963,7 @@ func squadParams(p Params) Params {
 	p.Peek = false
 	p.LaserFirst = true
 	p.LaserRange = 120
-	p.LootRadius = 100 // umich-ibe: loot within 100 m (was 150)
+	p.LootRadius = 150
 	p.CrateUntil = 1e9
 	p.Stick = 120
 	p.HPw = 0.2
