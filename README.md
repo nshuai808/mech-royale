@@ -162,3 +162,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `830814f` | 5.51 (builders-4) | 768b8a3 + regen guard (Codex priority 1: skip optional NPC/crate shots in the HealGate band). -0.24. |
 | Sun | `06383db` | 5.59 (builders-4) | 768b8a3 + practice upgrade order laser_damage, laser_charge, gun_damage, gun_rate, plating, armor. -0.16: neutral. |
 | Sun | `8621477` | **5.84 (builders-4)** | 768b8a3 + practice parameter switch at 5 s (was 20 s). +0.09: new best. Practice only: in the final it plays aggressive settings 5-20 s, so keep 768b8a3 as the FFA entry. |
+| Sun | `11242ed` | 5.51 (builders-4) | 768b8a3 + practice `CrateUntil = 150` (stop crate shots after 150 s). -0.24 vs 768b8a3: crates stay. |
