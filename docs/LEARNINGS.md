@@ -2,7 +2,8 @@
 
 The short version of every test we ran. Details: README's Submissions log (every real score), `coach/LOG.md`
 (day log, decisions), `coach/NN-*.md` (test briefs) and `coach/NN-report.md` (results), `docs/leaderboard_study.md`
-(what the top teams run). `main` now runs giddygiddyboy's Go bot (`giddy/`, 5.73); everything below the "Python bot"
+(what the top teams run). Branch `claude/nifty-galileo-lw5l5t` trials, the pacifist probe, sim A/Bs and
+outside observations (designer chat, top bots' cubes and loadouts): `docs/trials_nifty_galileo.md`. `main` now runs giddygiddyboy's Go bot (`giddy/`, 5.73); everything below the "Python bot"
 heading was learned on our own Python bot (best 3.71, `integ-3` = `6bb23c4`).
 
 ## 1. The scorer and the board
