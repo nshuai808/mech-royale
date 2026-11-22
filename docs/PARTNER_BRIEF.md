@@ -1,4 +1,4 @@
-# Partner brief: what Nathanael's session is doing (Sat 2026-11-21, ~10:30 PM ET)
+# Partner brief: what Nathanael's session is doing (updated Sat 2026-11-21, ~11 PM ET)
 
 For Advit's Claude: read this before starting work, so we don't build the same thing twice. Pick something from
 "Open lanes" (section 4) or something new, and tell Nathanael which one you take.
@@ -11,6 +11,15 @@ For Advit's Claude: read this before starting work, so we don't build the same t
   `docs/LEARNINGS.md` (everything learned so far), `docs/trials_nifty_galileo.md` (your trials).
 - Build: no Go installed system-wide on Nathanael's PC; he uses a downloaded Go zip. `cd giddy && go build -o mechbot ./cmd/bot`,
   then `python kit/check/check.py -- giddy/mechbot` (or the `.exe`). `tools/replay.py` and `tools/sim.py` take the binary as the bot.
+- **Branch `robust`** (`6ea23776b07e5a5ae55af1adf936c538403eaee3`) = `main` + robustness fixes; **base new branches on it**
+  (it goes to `main` with the next winner). Practice behavior is unchanged (no other mechs die in practice). It adds:
+  - FFA detector fix (`observe`): a `kill` event for a known NPC no longer counts as a mech kill. Before, each NPC kill
+    (if the server sends `kill` for NPCs; the protocol only says "you killed a mech") cancelled one other mech's death,
+    so the bot could stay in aggressive practice mode in the final.
+  - `MECH_DEBUG=1` prints recovered panics with a stack to stderr (giddy's `recover` in `Act` hides them otherwise).
+  - `tools/fuzz_bin.py -- <binary>`: fuzzes any bot binary over the protocol (every weapon, empty slots, off-map
+    positions, zone radius 0, offers, drops, projectiles). Result on giddy: 12,000 decisions, **0 panics, 0 bad
+    answers**, worst 9.3 ms (one 17.9 ms spike) on this PC. Slowest cases: positions past the map edge.
 
 ## 2. Done and measured
 
@@ -24,14 +33,18 @@ Both identical to the base: **the bot never reaches 10 cubes in practice**. So t
 
 ## 3. In flight (waiting for submission slots; don't duplicate)
 
-A 4-run swing that tests 4 loot/upgrade factors at once and can still separate their effects:
+A 4-run swing that tests 4 loot/upgrade factors at once and can still separate their effects.
+`s-all` scored **5.25** (-0.48 vs base): the stack hurts. The three leave-one-outs find which factor; they now
+include the `robust` commits (merged, no practice behavior change, so still comparable with `s-all`):
 
-| Branch | Contains | Hash |
-| --- | --- | --- |
-| `s-all` | E + X + F + N | `5de62121990750a4dc73bab5c3051cd3b5cf0e92` |
-| `s-no-econ` | X + F + N | `ed432426c21a66026ae00786069e4d8842a27e33` |
-| `s-no-explore` | E + F + N | `baa73b89578490f1eb3346b4bfb9023518924ff9` |
-| `s-no-fightloot` | E + X + N | `037b6eaa28e8d1c823c5be3a135b3aeb738840dc` |
+| Branch | Contains | Hash | Real |
+| --- | --- | --- | --- |
+| `s-all` | E + X + F + N | `5de62121990750a4dc73bab5c3051cd3b5cf0e92` | **5.25** |
+| `s-no-explore` | E + F + N (+ robust) | `acffb086eb89d0d41523437e7972e6cd303e933c` | next |
+| `s-no-econ` | X + F + N (+ robust) | `dc730ac1878d679f7e52a2c500b806567766c7ba` | next |
+| `s-no-fightloot` | E + X + N (+ robust) | `541a96d348cb426504dc4b028fd607629979d42f` | next |
+
+The old hashes of the three leave-one-outs (`ed43242`, `baa73b8`, `037b6ea`) are superseded: don't submit them.
 
 - **E** `p.Econ = true`: giddy's value-based loot mode + shooting crates from up to 110 m when nothing is in sight.
 - **X** `p.Explore = true`: roam the next circle for loot when idle.
@@ -42,10 +55,11 @@ Effect of E = `s-all` - `s-no-econ` (same for X, F); N = sum of the 3 leave-one-
 Single-change branches `v-econ`, `v-explore`, `v-farm`, `v-econ-explore`, `v-cubes21-loot`, `v-cubes21-nano` exist
 but are superseded by this swing: don't submit them.
 
-**Next in this session:** robustness for the final (free-for-all against other teams' bots), not practice score:
-how giddy tells practice from FFA (`observe()`: `otherDead`, `notPractice`, `squadParams` after 20 s), panics
-(swallowed by `recover` in `Act`), worst-case answer time, a quick `sim.py --ffa` look for zone deaths / stuck matches.
-**Please leave these to us**, and leave the E/X/F/N loot/upgrade parameters in `squadParams` alone until the swing scores are in.
+**Robustness (this session):** done: panics, bad answers and answer time (fuzzed, all clean), the NPC-kill bug in the FFA
+detector (fixed on `robust`). Still running: a `sim.py --ffa` look at giddy vs integ-3 for zone deaths, stuck matches and
+early deaths. Known, not changed: in a free-for-all giddy plays its aggressive practice settings from 20 s until the
+first other death it sees; `hello` has no match-type field, so deaths are the only signal.
+Please leave the E/X/F/N loot/upgrade parameters in `squadParams` alone until the swing scores are in.
 
 ## 4. Open lanes (nobody is on these)
 
