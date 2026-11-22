@@ -38,8 +38,11 @@ def ground_fn():
 
 def load(path, ground):
     op = gzip.open if path.endswith(".gz") else open
-    with op(path, "rt") as f:
-        lines = [json.loads(l) for l in f if l.strip()]
+    try:
+        with op(path, "rt") as f:
+            lines = [json.loads(l) for l in f if l.strip()]
+    except (EOFError, OSError, ValueError):
+        return None                      # still being written, or cut off
     if not lines or lines[0].get("type") != "header":
         return None
     h = lines[0]
