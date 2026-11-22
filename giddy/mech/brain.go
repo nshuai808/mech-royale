@@ -1935,6 +1935,7 @@ func squadParams(p Params) Params {
 	p.Lethal = true
 	p.Finish = 20
 	p.FightLoot = 40
+	p.CubeGoal = 15 // umich-ibe: Practice: farm cubes up to 15 (upgrade threshold 15) instead of the stat cap 10
 
 	return p
 }

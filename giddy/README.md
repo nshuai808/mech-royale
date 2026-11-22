@@ -12,6 +12,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | File | Change |
 | --- | --- |
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
+| `mech/brain.go` `squadParams` | `p.CubeGoal = 15`: Practice: farm cubes up to 15 (upgrade threshold 15) instead of the stat cap 10 |
 
 Everything else is unchanged. Any later change goes in this table.
 
