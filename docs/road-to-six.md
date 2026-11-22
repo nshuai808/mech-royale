@@ -1,6 +1,6 @@
 # From 5.58 to 6+ on Builders
 
-Our selected final entry and control, `768b8a3`, scored 5.75. Reaching 6.00 takes 24 more placement points across 96 matches, or one extra hunter outlasted in one match out of four. The leaders in the Sunday snapshot scored 6.20–6.74. [Scoring-page snapshot](../coach/advit-submissions.md)
+Advit selected `8621477` after its 5.84 practice score. The comparison control is `768b8a3` (5.75). The question before freeze is whether switching to squad settings 15 s earlier is worth the opening risk in the final. [Submission log, 8:29 AM ET entry](../coach/advit-submissions.md)
 
 Earlier shooting-cutoff experiments put most scoring before 150 seconds, with a smaller contribution from 150–300 seconds. Those probes used the previous scorer. We still need to learn whether the selected build loses the next fight because it arrives hurt, gets hit first, or trades poorly once engaged. Each experiment below tests one of those explanations. [Earlier probes and simulator results](advit_summary.md)
 
@@ -36,12 +36,12 @@ Start new branches at `768b8a3` for a one-change comparison. Add your name and b
 
 Use matched local scenarios to check the predicted behavior and compare against the control on the same seeds. Record sample counts and early kills so a middle-game improvement cannot hide an opening regression. The local gun-only simulator can exercise pathing and contact geometry. Laser timing and lightning trades need focused weapon-state tests. Builders supplies the practice score; the detailed encounter measurements come from local runs.
 
-Before submitting, run the repo's protocol and timing checks and coordinate a scoring slot with the team. Log the commit, local evidence, and builders-4 result below. Keep `768b8a3` selected during testing.
+Before submitting, run the repo's protocol and timing checks and coordinate a scoring slot with the team. Log the commit, local evidence, and builders-4 result below.
 
 | Experiment and commit | Scenario or seed set and count | Control → candidate metric | Builders score | Decision |
 | --- | --- | --- | --- | --- |
 | Original duel control `8f7f9b8` | Builders-4, 96 matches | — | 5.58 | Reference for #3. |
-| #3 `768b8a3` duel control + laser-first + 60% gate from 150 s + robust FFA fix | Builders-4, 96 | +0.17 vs `8f7f9b8` | **5.75** | Selected final pick and new control. |
+| #3 `768b8a3` duel control + laser-first + 60% gate from 150 s + robust FFA fix | Builders-4, 96 | +0.17 vs `8f7f9b8` | **5.75** | 20 s control and FFA fallback. |
 | #1 `7294ba0` adds Corner 15 s to `768b8a3`. After a kill from 150 s, move 8–24 m to lower exposure when clear. | Builders-4, 96. Local sim had no qualifying kills. | −0.27 vs `768b8a3` | 5.48 | Keep Corner off. Test the approach before shortening the hold. |
 | #3 tuning `5722027` delays HealGate on `768b8a3` from 150 s to 200 s at the same 60% HP threshold. | Builders-4, 96 | −0.24 vs `768b8a3` | 5.51 | Keep the 150 s start. Timing test complete. |
 | #2 `c430120` adds DuelBoth to `768b8a3`. Break sight when the hunter wins the estimated trade, except for a finish under 1.2 s. | Builders-4, 96 | −0.35 vs `768b8a3` | 5.40 | Drop DuelBoth. Keep the control’s duel behavior. |
@@ -53,6 +53,7 @@ Before submitting, run the repo's protocol and timing checks and coordinate a sc
 | `081f0d7` tracks the last hunter for 1 s after losing sight from 60 s. Duel positioning still starts at 150 s. | Builders-4, 96. Paired sim +0.23 over 48. | −0.42 vs `768b8a3` | 5.33 | Drop early tracking. The sim gain did not transfer. |
 | `830814f` suppresses optional NPC/crate shots from 150 s below 60% HP. | Builders-4, 96. Sim unchanged, gate rarely reached. | −0.24 vs `768b8a3` | 5.51 | Within noise. Keep the control’s firing behavior. |
 | `06383db` sets practice upgrades to laser damage, laser charge, gun damage, gun rate, then plating and armor. | Builders-4, 96 | −0.16 vs `768b8a3` | 5.59 | Within noise. Keep plating and armor ahead of gun upgrades. |
+| `8621477` enables squad settings after 5 s (was 20 s) while the FFA detector is still undecided. | Builders-4, 96 | +0.09 vs `768b8a3` | **5.84** | New practice best and Advit’s selected final entry. See FFA review below. |
 
 **Note (Advit):** `8f7f9b8` is built on `515bce5`, not `robust`, so it lost robust's FFA-detector fix (an NPC kill counted as a mech
 kill can hide other mechs' deaths and keep giddy in its aggressive practice settings in the final). The #3 commit restores it.
@@ -64,19 +65,19 @@ HealGate from 200 s `5722027`.
 
 ## Analysis and next steps (Codex review, 2026-11-22)
 
-**What happened.** All eleven one-change trials trailed `768b8a3` (5.75), with a mean of 5.49 and a range of 5.33–5.69. Moving gun upgrades ahead of defenses scored 5.59 (−0.16), within the estimated ±0.18–0.25 variation per submission. Its 0.20 edge over nanites third (5.39) is also too small to rank those choices. Park upgrade-order sweeps. All eleven comparisons share a control selected for its high score, so a favorable draw could explain part of every gap. [Builders-4 submissions through 4:40 AM ET](../coach/advit-submissions.md)
+**What happened.** The 5 s switch is the first of twelve one-change builds to beat the 5.75 control. Its +0.09 fits the estimated ±0.18–0.25 variation per submission. The house squad rarely supplies the signal that ends practice mode, so its score tells us little about the cost of an early FFA encounter. [Builders-4 submissions](../coach/advit-submissions.md)
 
-**Before the 9 AM ET freeze.** Give FFA robustness the development time. Use practice slots for Advit’s already-built loot trials in the order below. For the first trial, compare encounters with a cube beside the bot and one across an exposed lane. Record cube pickups, damage taken on the detour and whether the bot keeps firing. This distinguishes the cost of walking from the value of a nearby cube.
+**When the builds disagree.** Both start with base settings. On every observation, `observe` checks whether the drop from the initial alive count exceeds our own mech kills (known NPC kills are excluded). Five consecutive positive observations, roughly half a second, permanently set `notPractice` and restore base settings if squad mode is active. A zero or negative difference resets the counter. The only code change is the time gate, from `now > 20` to `now > 5`. [Detector at the scored commit](https://github.com/nshuai808/mech-royale/blob/8621477/giddy/mech/brain.go#L317-L348)
 
-| Order | Work before freeze | Submission decision |
-| --- | --- | --- |
-| 1 | Review recorded showdown openings and test the control’s FFA switch with a known NPC kill followed by another mech’s death. Compare the control and the already-scored Opening build on the same two seed sets against clones in `--ffa`. Track placement, deaths before 60 s and time spent in practice mode. | Zero practice slots for diagnosis. If a repeatable FFA failure appears, fix that behavior alone and rerun the paired comparison. The gun-only clone sim can test exposure and switching. Use showdown evidence for loadout effects. |
-| 2 | Run Advit’s practice queue after protocol and timing checks. Start with `4c50b36` (no mid-fight cube walks), then `11242ed` (stop crates at 150 s), `e967e8f` (farm above 75% HP), and `089ffe9` (100 m loot radius). | Score each alone against `768b8a3`. The fifth queued build, `8621477`, switches to practice at 5 s and is for practice only. Coordinate the six hourly slots with the team. |
-| 3 | Give a reproduced FFA fix the next available slot once it passes the paired checks. For later practice combinations, follow Advit’s queue below. | Check how the winning changes interact before combining them. If no loot change beats 5.75, leave combinations parked. A narrower follow-up is to take cubes already on the fight path if the first trial shows that exposed detours cost HP. |
+| FFA evidence on the same observation stream | Consequence |
+| --- | --- |
+| FFA confirmed by 5 s | Both keep base settings throughout. |
+| FFA confirmed at 12 s, for example | The 5 s build spends about 7 s in squad mode, then switches back. The 20 s control stays in base mode. |
+| FFA still unconfirmed at 20 s | The new build gets up to 15 extra seconds in squad mode. Both then use it until confirmation. A quiet lobby or deaths entirely credited to us can delay that signal indefinitely. |
 
-**Control resubmission: zero slots.** Builders-4 keeps the first score for identical code. Resubmitting `768b8a3` or a byte-identical rebuild returns the existing 5.75 and provides no independent batch. More local seeds can measure local FFA robustness, but the control’s expected builders-4 score remains unknown. [Scorer notes](advit_summary.md)
+**Cost in the final.** Yes, the earlier gate creates more opportunity for a temporary false practice classification. It changes neither the death test nor the ability to recover. During the extra window, squad settings disable `Ghost` and `Peek`, widen loot search from 90 to 150 m and allow mid-fight cube detours up to 40 m. Earlier loot could help, but stepping into a second opponent’s sightline can cost HP or placement before the detector corrects. Restoring parameters cannot undo that move or an early death. The frequency and net placement cost in real finals are unmeasured. [Squad settings](https://github.com/nshuai808/mech-royale/blob/8621477/giddy/mech/brain.go#L1958-L1986)
 
-**Final pick.** Keep `768b8a3` selected for its best observed practice result and restored FFA detector. Switch only for a checked candidate with repeatable evidence of better final-format placement or a demonstrated fix for a consequential FFA failure. A practice-only gain cannot establish either. [FFA checks](PARTNER_BRIEF.md)
+**Freeze decision.** Advit currently has `8621477` selected. **Recommend returning to `768b8a3` for the FFA final** unless available showdown evidence or paired FFA openings favor the 5 s build. With about 25 minutes left, first check when the first sustained, uncredited death occurs in recorded openings. For matches still undecided at 5 s, compare first contact, HP at 20 s and early deaths on matched spawns. Give this check priority over new practice submissions. If evidence is sparse at 9 AM ET, use the 20 s fallback. An identical resubmission cannot generate an independent practice score. [Scorer notes](advit_summary.md)
 
 **Advit, builds for the Codex priorities (one change on `768b8a3` each):**
 - Priority 1, regen guard: `830814f` skips optional NPC/crate shots inside the HealGate band (from 150 s, below 60 % HP). Sim: identical (gate band rarely reached).
