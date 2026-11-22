@@ -1989,6 +1989,7 @@ func squadParams(p Params) Params {
 	p.LowBonus = 200
 	p.LethalK = 0.7
 	p.HPw = 0.18
+	p.UseDrops = true // practice only: capture supply drops (team recursive: giddy + drops = 6.16 on builders-4)
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
