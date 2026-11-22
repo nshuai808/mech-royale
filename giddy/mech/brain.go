@@ -185,7 +185,7 @@ func angDiff(a, b float64) float64 {
 
 func clamp(v, lo, hi float64) float64 { return math.Max(lo, math.Min(hi, v)) }
 
-const probeStopAt = 300.0
+const probeStopAt = 150.0
 
 func (b *Brain) Act(o *Obs) (act Action) {
 	act.Tick = o.Tick
