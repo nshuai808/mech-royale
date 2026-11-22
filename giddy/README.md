@@ -12,6 +12,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | File | Change |
 | --- | --- |
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
+| `mech/duel.go`, `mech/brain.go` | Practice duels after 150 s compare firing from the current range with closing to lightning range and use nearby cover during weapon downtime. |
 
 Everything else is unchanged. Any later change goes in this table.
 
