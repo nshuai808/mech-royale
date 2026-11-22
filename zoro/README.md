@@ -1,6 +1,9 @@
 > **In this repo (UMICH IBE):** an unchanged copy of Team Sulertia's V2 build (TEMOtkesh/mech-royale-bot, branch `v2`,
 > commit `6da1573`), itself a fork of [zoro](https://github.com/Specz04/zoro) by Specz04. Both MIT; `LICENSE` is kept unchanged.
-> Our only change: the bot name in `internal/pilot/tuning.go`. The top-level `Dockerfile` builds this folder.
+> Our changes: the bot name, and two free-for-all-only nuances that act once the lobby is a proven free-for-all
+> (always after the cutoff), so practice play is unchanged: `FFAEngageAdd` 0.1 (start a hunt only at a slightly better
+> advantage) and `FFALootRadius` 180 m (was 220 m: shorter loot trips across open ground). See `stance()` in
+> `internal/pilot/threats.go`. The top-level `Dockerfile` builds this folder.
 
 # zoro
 

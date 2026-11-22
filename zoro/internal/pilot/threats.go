@@ -21,7 +21,17 @@ func (p *Pilot) stance() stance {
 	if p.practice() {
 		return stance{squad: true, engage: p.T.SquadEngage, disengage: p.T.Disengage, lootRadius: p.T.LootRadius, wantCubes: p.T.SquadCubes}
 	}
-	return stance{engage: p.T.Engage, disengage: p.T.Disengage, careful: true, lootRadius: p.T.LootRadius, wantCubes: p.T.WantCubes}
+	st := stance{engage: p.T.Engage, disengage: p.T.Disengage, careful: true, lootRadius: p.T.LootRadius, wantCubes: p.T.WantCubes}
+	if p.lob.ffa {
+		// umich-ibe: only once a free-for-all is proven (always after the cutoff), so practice and its
+		// opening play exactly as before. Pickier about starting fights a third party can join, and
+		// shorter loot trips across open ground.
+		st.engage += p.T.FFAEngageAdd
+		if p.T.FFALootRadius > 0 && p.T.FFALootRadius < st.lootRadius {
+			st.lootRadius = p.T.FFALootRadius
+		}
+	}
+	return st
 }
 
 // threat is an enemy mech as it matters to this decision.

@@ -63,6 +63,10 @@ type Tuning struct {
 	SquadKiteMin     float64
 	SquadKiteMax     float64
 
+	// umich-ibe: free-for-all only (applied once the lobby is a proven free-for-all, see stance)
+	FFAEngageAdd  float64 // added to Engage: start fewer fights in a free-for-all
+	FFALootRadius float64 // loot radius cap in a free-for-all (0 = LootRadius)
+
 	// cover after the first hidden spot
 	DeepMargin float64 // cover must survive the threat side-stepping this far
 	DeepRange  float64 // hurt with the attacker inside this range: keep going deeper
@@ -157,6 +161,9 @@ func Defaults() Tuning {
 		SquadKite:        true,
 		SquadKiteMin:     130,
 		SquadKiteMax:     190,
+
+		FFAEngageAdd:  0.1,
+		FFALootRadius: 180,
 
 		DeepMargin: 8,
 		DeepRange:  80,
