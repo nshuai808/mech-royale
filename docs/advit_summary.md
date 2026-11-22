@@ -40,7 +40,7 @@ into the open lost.
 - **Worse:** Peek on (-0.42), GunRange 110 (-0.33) and 60 (-0.25), FinishHP 0.45 (-0.29), EngageDist 40 (-0.17).
 - **Better in the sim:** `AllFoes = true` **+0.40** (two seed pairs agree: +0.42, +0.38; kills 1.48 vs 1.19, same life),
   `EngageDist = 90` +0.33, which then scored 5.67 real (didn't transfer).
-- **Untested candidate: `96a804f`** = robust + `AllFoes = true`. Expect it may not transfer either (EngageDist didn't).
+- `96a804f` = robust + `AllFoes = true` scored **5.67** real: didn't transfer either. **The house-bot sim can't pick giddy combat flags.**
 
 ## 4. Tools built (all on the branch; none are in the bot image)
 
@@ -64,7 +64,7 @@ into the open lost.
 ## 6. Where the +1 is, and what's next
 
 - The practice gap is **mid-game duels (150-300 s) against stronger hunters**. No single giddy flag has moved it.
-- Next: (1) submit `96a804f` (AllFoes) once; (2) analyze recorded showdowns for the final (how giddy copies die,
+- Next: (1) done: AllFoes 5.67; (2) analyze recorded showdowns for the final (how giddy copies die,
   what top bots do differently), and rank final candidates in the clone arena; (3) if a duel change is tried, make it
   a code change in giddy's fight logic (laser hold / peek timing against strong hunters), not another flag.
 - The final entry should be a giddy build that is at least as good as 5.73 in practice (practice-only flags can't hurt

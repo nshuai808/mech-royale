@@ -135,3 +135,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sat 11:28 PM | `7802713` | 5.10 | `s-econ-fight`: Econ + FightLoot 70, no NanoUp (+ robust). **Same 5.10 as Econ + FightLoot + NanoUp**: NanoUp is not the culprit (likely a near no-op: the bot gets only ~2 upgrade offers, plating/armor first). The loss comes from Econ and/or FightLoot. Loot line closed. |
 | Sun | `d983a4c` | 5.75 | robust + practice upgrade order laser_damage, laser_charge before plating, armor. Behavior changed (not identical) but +0.02 is inside the ±0.25 noise: neutral, not harmful. |
 | Sun | `d5dffcc` | 5.67 | robust + practice `EngageDist = 90`. Neutral; the sim's +0.33 didn't transfer. |
+| Sun | `96a804f` | 5.67 | robust + practice `AllFoes = true`. Neutral: the sim's +0.40 (two seed pairs) didn't transfer, like EngageDist 90. The house-bot sim can't pick giddy combat flags. |
