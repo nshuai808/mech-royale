@@ -47,6 +47,10 @@ type Brain struct {
 	duelID   int
 	duelSeen float64
 
+	lastKillAt float64    // umich-ibe Corner: time of our last mech kill
+	corner     [2]float64 // umich-ibe Corner: chosen low-exposure spot after that kill
+	cornerOK   bool
+
 	path     []int32
 	pathGoal [2]float64
 	pathAt   float64
@@ -151,6 +155,7 @@ type Params struct {
 	Pursue     float64
 	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
 	HealFrom   float64 // umich-ibe: HealGate only applies after this match time (s)
+	Corner     float64 // umich-ibe: duel phase, this long after a kill with nobody in sight, hold a nearby low-exposure spot (s; 0 = off)
 }
 
 func DefaultParams() Params {
@@ -318,6 +323,10 @@ func (b *Brain) observe(o *Obs) {
 			// here would hide other mechs' deaths from the free-for-all detector below. (from robust)
 			if _, npc := b.npcs[e.Target]; !npc {
 				b.kills++
+				b.lastKillAt, b.cornerOK = b.now, false
+				if b.P.Corner > 0 {
+					b.corner, b.cornerOK = b.cornerSpot(o)
+				}
 			}
 			delete(b.tracks, e.Target)
 		}
@@ -808,6 +817,12 @@ func (b *Brain) step(o *Obs, act *Action) {
 	case zoneShould && zdist > 2:
 		mx, my = b.travel(me, zgx, zgy)
 		mode = "zone"
+	case b.P.Corner > 0 && duelPhase && b.cornerOK && now-b.lastKillAt < b.P.Corner && !danger && target == nil:
+		// road-to-six #1: after a kill, meet the next hunter from a covered spot instead of the open
+		if hyp(b.corner[0]-x, b.corner[1]-y) > 2.5 {
+			mx, my = b.travel(me, b.corner[0], b.corner[1])
+		}
+		mode = "corner"
 	default:
 		lc := b.chooseLoot(o, hpFrac, danger)
 		if lc != nil {
@@ -1808,6 +1823,31 @@ func (b *Brain) exploreMove(o *Obs) (float64, float64) {
 	return b.travel(me, b.explore[0], b.explore[1])
 }
 
+// cornerSpot: a reachable spot 6-30 m away, safely inside the zone, clearly less exposed than where we stand.
+func (b *Brain) cornerSpot(o *Obs) ([2]float64, bool) {
+	me, z := &o.Self, &o.Zone
+	x, y := me.Pos[0], me.Pos[1]
+	cur := b.curZone(z)
+	here := b.W.Exposure(x, y)
+	best, bestC := [2]float64{}, 120*here-8
+	for k := 0; k < 24; k++ {
+		a := float64(k) * math.Pi / 12
+		for _, r := range []float64{8, 15, 24} {
+			px, py := x+math.Cos(a)*r, y+math.Sin(a)*r
+			if !b.W.InBounds(px, py) || !b.W.Reachable(px, py) || !b.W.LineWalkable(x, y, px, py) {
+				continue
+			}
+			if hyp(px-cur.X, py-cur.Y) > cur.R-10 || b.zoneDeadline(z, px, py, 8) < b.now+25 {
+				continue
+			}
+			if c := 120*b.W.Exposure(px, py) + 0.4*r; c < bestC {
+				best, bestC = [2]float64{px, py}, c
+			}
+		}
+	}
+	return best, bestC < 120*here-8
+}
+
 func (b *Brain) homeCost(o *Obs, px, py float64) float64 {
 	z := &o.Zone
 	crowd := 0.0
@@ -1981,6 +2021,7 @@ func squadParams(p Params) Params {
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
+	p.Corner = 15 // umich-ibe: practice only, hold a nearby low-exposure spot for 15 s after a kill (duel phase)
 	return p
 }
 
