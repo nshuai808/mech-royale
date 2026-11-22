@@ -450,7 +450,7 @@ var upgradeOrder = []string{
 
 // umich-ibe: practice (LaserUp) order puts laser damage first.
 var upgradeOrderLaser = []string{
-	"laser_damage", "laser_charge", "plating", "armor", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
+	"laser_damage", "laser_charge", "armor", "plating", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
 	"servos", "gun_mag", "gun_velocity", "gyros", "lightning_chain", "reactor", "capacitor",
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
@@ -606,7 +606,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 		foe = hidden
 	}
 	// Keep the same opponent briefly while moving behind nearby cover.
-	duelPhase := b.pracOn && now >= 60
+	duelPhase := b.pracOn && now >= 150
 	if duelPhase && foe == nil && b.duelSeen > 0 && now-b.duelSeen < 1 {
 		foe = b.tracks[b.duelID]
 	}
