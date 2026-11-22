@@ -14,6 +14,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
 | `mech/brain.go` `observe` | `kill` events for known NPCs no longer count as mech kills (they would hide other mechs' deaths from the FFA detector) |
 | `mech/brain.go` `Act`, `cmd/bot/main.go` | With `MECH_DEBUG=1`, recovered panics are printed to stderr with a stack (local tools only; off in matches) |
+| `mech/brain.go` `squadParams` (practice mode) | Fight through: the lose rule ignores how many mechs are near (retreat only when low and the target is healthier) |
 
 Everything else is unchanged. Any later change goes in this table.
 
