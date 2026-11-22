@@ -1935,6 +1935,7 @@ func squadParams(p Params) Params {
 	p.Lethal = true
 	p.Finish = 20
 	p.FightLoot = 40
+	p.NanoUp = true // umich-ibe: Practice: upgrade order plating, armor, nanites, laser (faster heal between hunters)
 
 	return p
 }
