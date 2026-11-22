@@ -155,6 +155,12 @@ type Params struct {
 	// umich-ibe: NoCrowdLose: the lose rule ignores how many mechs are near (giddy: 2+ near under 55% HP or
 	// 3+ near under 80% HP = retreat); only "we are low and our target is healthier" triggers a retreat.
 	NoCrowdLose bool
+	// umich-ibe: FarmEarly > 0: until FarmEarly seconds, NPC drones (2 cubes each) count from FarmEarlyR m away
+	// (giddy: LootRadius), are worth more, and are remembered for 60 s (giddy: 12 s): early cubes, early upgrades.
+	FarmEarly  float64
+	FarmEarlyR float64
+	// umich-ibe: LaserDmgFirst: laser_damage goes first in the upgrade order (4 laser hits kill a 1400 HP mech).
+	LaserDmgFirst bool
 }
 
 func DefaultParams() Params {
@@ -503,6 +509,13 @@ func (b *Brain) step(o *Obs, act *Action) {
 
 	if o.Offer != nil && len(o.Offer.Choices) > 0 {
 		p := pickUpgrade(o.Offer, b.P.LaserUp, b.P.NanoUp)
+		if b.P.LaserDmgFirst {
+			for i, c := range o.Offer.Choices {
+				if c.ID == "laser_damage" {
+					p = i
+				}
+			}
+		}
 		act.Pick = &p
 	}
 
@@ -1730,9 +1743,13 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 			}
 		}
 		if b.P.FarmNPC && me.Cubes < b.cubeCap() {
+			npcR, npcV, npcFresh := b.P.LootRadius, 85.0, 12.0
+			if b.P.FarmEarly > 0 && now < b.P.FarmEarly {
+				npcR, npcV, npcFresh = math.Max(npcR, b.P.FarmEarlyR), 140, 60
+			}
 			for _, n := range b.npcs {
-				if now-n.Seen < 12 && hyp(n.Pos[0]-x, n.Pos[1]-y) < b.P.LootRadius {
-					consider("npc", n.ID, n.Pos, 85)
+				if now-n.Seen < npcFresh && hyp(n.Pos[0]-x, n.Pos[1]-y) < npcR {
+					consider("npc", n.ID, n.Pos, npcV)
 				}
 			}
 		}
