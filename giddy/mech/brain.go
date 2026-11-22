@@ -98,8 +98,6 @@ type Brain struct {
 	startAlive, kills  int
 	otherDead          int
 	stickID            int
-	lastTP             Vec3    // umich-ibe LaserHold: last aim point (centre) of a mech target
-	lastTPAt           float64 // when it was last a target
 	stickAt, loseAt    float64
 }
 
@@ -151,7 +149,7 @@ type Params struct {
 	FinishHP   float64
 	FinishRush bool
 	Pursue     float64
-	LaserHold  float64 // umich-ibe: keep charging this long after the target drops out of view (s; 0 = off)
+	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
 }
 
 func DefaultParams() Params {
@@ -450,9 +448,8 @@ var upgradeOrder = []string{
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
 
-// umich-ibe: practice (LaserUp) order puts laser damage first (alone: 5.75).
 var upgradeOrderLaser = []string{
-	"laser_damage", "laser_charge", "plating", "armor", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
+	"plating", "armor", "laser_damage", "laser_charge", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
 	"servos", "gun_mag", "gun_velocity", "gyros", "lightning_chain", "reactor", "capacitor",
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
@@ -567,6 +564,12 @@ func (b *Brain) step(o *Obs, act *Action) {
 			t.Engage = true
 		case aimed && t.Dist < 190:
 			t.Engage = true
+		}
+		if b.P.HealGate > 0 && t.Engage && hpFrac < b.P.HealGate && !late && now-t.HitMe >= 4 && t.Dist > 45 &&
+			t.HP >= 0.3*t.MaxHP && !(t.ID == b.stickID && now-b.stickAt < 2) {
+			// hurt and this foe isn't on us yet: let regen (45 HP/s after 5 s out of combat) top us up before the
+			// next hunter; a foe that shoots us, comes close, is nearly dead, or is the one we are fighting stays engaged
+			t.Engage = false
 		}
 		if t.Engage && !t.LOS && t.Dist < maxT && (hidden == nil || t.Dist < hidden.Dist) {
 			hidden = t
@@ -925,7 +928,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 			tp[2] = target.Pos[2] + th*0.85
 		}
 		shootable, isMech = true, true
-		b.lastTP, b.lastTPAt = tp, now
 	case farm != nil:
 		tr, th = b.Cfg.Npc.Radius, b.Cfg.Npc.Height
 		tp, tv = farm.Pos, farm.Vel
@@ -1040,20 +1042,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 		for i, w := range me.Weapons {
 			if w != nil && i < 2 && w.Kind == "laser" && w.Cooldown <= 0.05 && foe.Dist < w.Stats.Range && w.Charge < w.Stats.Charge+w.Stats.HoldS-0.35 {
 				act.Fire[i] = true
-			}
-		}
-	}
-
-	if b.P.LaserHold > 0 && target == nil && now-b.lastTPAt < b.P.LaserHold && !b.retreat && !zoneShould {
-		// The target blinked out (tree, corner, vision flicker) while we charge: letting go now fires the beam
-		// along whatever the torso points at and costs a 1.65 s cooldown. Keep holding, aimed at where it was,
-		// so the shot goes off when it comes back (the release logic above runs again once it is a target).
-		for i, w := range me.Weapons {
-			if w != nil && i < 2 && w.Kind == "laser" && w.Charge > 0 && w.Charge < w.Stats.Charge+w.Stats.HoldS-0.15 {
-				act.Fire[i] = true
-				aim = [2]float64{math.Atan2(b.lastTP[1]-muzzle[1], b.lastTP[0]-muzzle[0]),
-					math.Atan2(b.lastTP[2]-muzzle[2], hyp(b.lastTP[0]-muzzle[0], b.lastTP[1]-muzzle[1]))}
-				haveAim = true
 			}
 		}
 	}
@@ -1963,7 +1951,7 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.LaserHold = 1.0 // umich-ibe: practice only, hold a laser charge through a <= 1 s loss of the target
+	p.HealGate = 0.8 // umich-ibe: practice only, heal to 80 % before starting the next fight
 	return p
 }
 
