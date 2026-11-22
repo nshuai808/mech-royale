@@ -281,12 +281,24 @@ class Bot:
         dd = self.dd
         capturing = dd.goal is not None and dd.phase == "capture"
         late_on = self.lp is not None and self.lp.active(self.zn)
+        rush = self._rush_order(target, recently_hurt, hp_frac) if me["in_zone"] and not hurry else None
 
         # ---------------------------------------------------------- modes
-        if not me["in_zone"] or hurry:
+        if not me["in_zone"] or hurry or (rush is not None and rush[0] == "zone"):
             self.mode, why = "zone", "outside" if not me["in_zone"] else ("critical" if zone_crit else "late")
             move = self._go_circle(self.gx, self.gy, self.gr)
-            boost = me["energy"] > 20 and (not me["in_zone"] or hurry)
+            boost = me["energy"] > 20
+        elif rush is not None:
+            self.mode, point, rush_yaw = rush
+            why = "hold" if point is None else "to position"
+            if point is not None:
+                move = self._go_point(*point, 2.0)
+            elif self.mode == "rush_hold":
+                self.escape_until = self.t
+            if target is not None and target["kind"] == "mech" and target not in exposed and exposed:
+                visible_target = self._choose_target(exposed, npcs)
+                if visible_target is not None:
+                    target = visible_target
         elif on_roof:
             # up high: stand back from the edges (ground bots can't see us there), shoot whatever we can see
             sx, sy = self.roof.stand
@@ -429,6 +441,8 @@ class Bot:
 
         # ---------------------------------------------------------- torso and weapons
         self._aim_and_fire(act, obs, target, mv)
+        if self.mode in ("rush_prep", "rush_hold") and target is None:
+            act["aim"] = [round(rush_yaw, 4), 0.0]
         loot_take = self._take(obs)
         if loot_take:
             act.update(loot_take)
@@ -688,6 +702,76 @@ class Bot:
             if tts < ttk + 1.0:
                 return True
         return False
+
+    def _rush_order(self, target, recently_hurt, hp_frac):
+        if not hasattr(self, "rush_params"):
+            self.rush_params = load_params().get("rush") or {}
+        p = self.rush_params
+        if not p.get("enabled") or self.map is None:
+            return None
+        approach = self._threat_aim()
+        if approach is not None:
+            self.rush_last_yaw = approach[0]
+        if self.t < p.get("prep_s", 250.0):
+            return None
+        holding = self.t >= p.get("hold_s", 290.0)
+        if (holding and hp_frac < p.get("flee_hp", 0.25)) or (
+                not holding and (target is not None or recently_hurt)):
+            return None
+        if self.zp is not None and (not self.zp.inside or (
+                self.zp.goal is not None and self.zp.urgency >= zone.GO)):
+            return "zone", None, None
+        spot = self._rush_position()
+        if spot is None:
+            return None
+        x, y, yaw = spot
+        if recently_hurt and self.unseen:
+            yaw = self.unseen[0][1]
+        elif approach is not None and abs(wrap(approach[0] - yaw)) <= math.pi / 3:
+            yaw = approach[0]
+        point = (x, y) if math.hypot(x - self.x, y - self.y) >= 2.0 else None
+        return ("rush_hold" if holding else "rush_prep"), point, yaw
+
+    def _rush_position(self):
+        """Pick a sheltered position with a short firing lane toward the likely approach."""
+        key = self.zone_key
+        if getattr(self, "rush_key", None) != key:
+            self.rush_key = key
+            self.rush_scorer = late.LatePlanner(self.map)
+            self.rush_approach = getattr(self, "rush_last_yaw", self.me["aim"][0])
+            self.rush_origin = (self.x, self.y)
+            self.rush_best = math.inf
+            self.rush_spot = None
+            self.rush_todo = [(self.gx, self.gy)]
+            for fraction in (0.25, 0.5, 0.75):
+                self.rush_todo.extend((self.gx + self.gr * fraction * ux,
+                                       self.gy + self.gr * fraction * uy)
+                                      for ux, uy in self.rush_scorer.dirs)
+        stop = min(self.deadline - 0.010, time.perf_counter() + 0.004)
+        weight = self.rush_params.get("openness_weight", 1.0)
+        for _ in range(8):
+            if not self.rush_todo or time.perf_counter() >= stop:
+                break
+            cell = self.map.nearest_free(*self.rush_todo.pop(), max_r=4)
+            if cell < 0:
+                continue
+            x, y = self.map.center(cell)
+            center_d = math.hypot(x - self.gx, y - self.gy)
+            if center_d > self.gr or not self.in_safe(x, y):
+                continue
+            rays = tuple(self.rush_scorer._sight_distances(x, y))
+            position_cost = 0.35 * center_d + 0.15 * math.dist((x, y), self.rush_origin)
+            for i, (ux, uy) in enumerate(self.rush_scorer.dirs):
+                yaw = math.atan2(uy, ux)
+                if abs(wrap(yaw - self.rush_approach)) > math.pi / 2:
+                    continue
+                lane = rays[i]
+                lane_cost = 2.0 * max(15 - lane, lane - 60, 0)
+                shelter = sum(rays[(i + j) % 16] for j in range(3, 14)) / 11
+                score = position_cost + lane_cost + weight * shelter + 10 * abs(wrap(yaw - self.rush_approach))
+                if score < self.rush_best:
+                    self.rush_best, self.rush_spot = score, (x, y, yaw)
+        return self.rush_spot
 
     def _multi_hit(self, hp_frac):
         """Step 2: two or more different mechs hit us within window_s while we are below hp_frac: we are being flanked

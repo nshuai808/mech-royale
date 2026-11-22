@@ -3,6 +3,13 @@
   "zone": {
     "enabled": true
   },
+  "rush": {
+    "enabled": false,
+    "prep_s": 250.0,
+    "hold_s": 290.0,
+    "flee_hp": 0.25,
+    "openness_weight": 1.0
+  },
   "drops": {
     "enabled": true
   },

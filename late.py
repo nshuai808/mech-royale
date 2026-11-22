@@ -63,10 +63,12 @@ class LatePlanner:
 
     def _openness(self, x, y):
         """Mean free sight distance over 16 directions, as a fraction of ray_m (0 = boxed in, 1 = open)."""
+        return sum(self._sight_distances(x, y)) / (16 * self.p.ray_m)
+
+    def _sight_distances(self, x, y):
         m = self.m
         g, minx, miny, nx, ny = m.sight, m.minx, m.miny, m.nx, m.ny
         lim = self.p.ray_m
-        tot = 0.0
         for ux, uy in self.dirs:
             d = CELL
             while d <= lim:
@@ -75,8 +77,7 @@ class LatePlanner:
                 if i < 0 or j < 0 or i >= nx or j >= ny or g[j * nx + i]:
                     break
                 d += CELL
-            tot += min(d, lim)
-        return tot / (16 * lim)
+            yield min(d, lim)
 
     def update(self, x, y, gx, gy, gr, deadline):
         """Spot (x, y) inside the disc (gx, gy, gr), or None until the first candidate is scored."""
