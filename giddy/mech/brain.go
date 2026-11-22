@@ -44,8 +44,9 @@ type Brain struct {
 
 	now float64
 
-	duelID   int
-	duelSeen float64
+	duelID                          int
+	duelSeen                        float64
+	heardYaw, heardUntil, heardRank float64
 
 	path     []int32
 	pathGoal [2]float64
@@ -1071,6 +1072,15 @@ func (b *Brain) step(o *Obs, act *Action) {
 		slot, _ := hasWeapon(me.Weapons, "laser")
 		act.Fire[slot] = true
 	}
+	if b.pracOn {
+		b.listen(now, o.Sounds)
+	}
+	// A close weapon signature can interrupt crate/NPC aim for a short scan.
+	if b.pracOn && target == nil && foe == nil && !defend && now < b.heardUntil && (!haveAim || b.heardRank >= 5) {
+		aim = [2]float64{b.heardYaw, 0}
+		act.Fire = [2]bool{}
+		haveAim = true
+	}
 	if !haveAim {
 
 		var watch *Track
@@ -1956,6 +1966,32 @@ func (b *Brain) odds(me *Self, t *Track, now float64, opening bool) float64 {
 		}
 	}
 	return 1 / (1 + math.Exp(-z))
+}
+
+// A bearing can steer the vision cone but cannot identify a target.
+func (b *Brain) listen(now float64, sounds []Sound) {
+	for _, s := range sounds {
+		if s.Dist == "far" || s.Age > 0.45 {
+			continue
+		}
+		rank := 0.0
+		switch s.Kind {
+		case "laser_charge", "lightning", "gun", "mortar", "laser":
+			rank = 3
+		case "reload", "boost", "jet", "step":
+			rank = 1
+		default:
+			continue
+		}
+		if s.Dist == "near" {
+			rank += 2
+		}
+		until := now - s.Age + 0.55
+		if until <= now || (now < b.heardUntil && (rank < b.heardRank || (rank == b.heardRank && until <= b.heardUntil))) {
+			continue
+		}
+		b.heardYaw, b.heardRank, b.heardUntil = s.Bearing, rank, until
+	}
 }
 
 func squadParams(p Params) Params {
