@@ -6,6 +6,9 @@
   "drops": {
     "enabled": true
   },
+  "drop_push": {
+    "enabled": true
+  },
   "roof": {
     "_note": "roof.py: from start_s, climb a roof inside the next circle and hold it (stand back from the edges)",
     "enabled": false,

@@ -77,6 +77,7 @@ class DropDecision:
     utility: float = 0.0
     preempt_regen: bool = False
     preempt_retreat: bool = False
+    preempt_fight: bool = False
     reason: str = ""
 
 
@@ -100,6 +101,9 @@ class DropPlanner:
         self.capture_s = float(dc.get("capture_s", 4.0))
         self.radius = float(dc.get("radius", 8.0))
         self.walk_speed = float((cfg.get("mech") or {}).get("walk_speed", 11.7))
+        self.call_times = tuple(dc.get("times") or (70, 140, 210))
+        self.fall_s = float(dc.get("fall_s", 25))
+        self.drop_numbers: Dict[int, int] = {}
         self.ignore_until: Dict[int, float] = {}
         self.taken: set = set()
         self.cur_id: Optional[int] = None
@@ -109,11 +113,11 @@ class DropPlanner:
 
     # ------------------------------------------------------------------ public
     def step(self, obs: dict, zone_plan=None, world=None,
-             path_cost: Optional[Callable] = None) -> DropDecision:
+             path_cost: Optional[Callable] = None, *, push=False, terrain=None) -> DropDecision:
         if not self.p.enabled:
             return DropDecision(reason="off")
         try:
-            return self._step(obs, zone_plan, world, path_cost)
+            return self._step(obs, zone_plan, world, path_cost, push, terrain)
         except Exception as e:  # never let drops stall or crash a tick
             return DropDecision(reason="error:" + type(e).__name__)
 
@@ -152,7 +156,29 @@ class DropPlanner:
             return False
         return True
 
-    def _step(self, obs, zone_plan, world, path_cost) -> DropDecision:
+    def _push_route(self, me, dp, ring, terrain, nearby, at_ring, holder, eta, cap_left):
+        """Allow a covered approach or a short contest against one weaker mech."""
+        x, y = me["pos"][:2]
+        dist = math.hypot(dp[0] - x, dp[1] - y)
+        rivals = {e["id"]: e for e in nearby + at_ring}
+        if at_ring or holder is not None:
+            rival = next(iter(rivals.values())) if len(rivals) == 1 else None
+            hp = me.get("hp", 0)
+            favorable = (rival is not None and (holder is None or holder == rival["id"])
+                         and rival.get("hp") is not None and hp >= 1.25 * rival["hp"]
+                         and hp >= 0.6 * me.get("max_hp", 1))
+            can_enter = holder is None or eta - ring / self.walk_speed <= max(0.0, cap_left)
+            return False, favorable and can_enter and dist <= 110.0
+        if not nearby or terrain is None or dist <= ring:
+            return False, False
+        scale = min(1.0, 16.0 / dist)
+        sx, sy = x + (dp[0] - x) * scale, y + (dp[1] - y) * scale
+        covered = (terrain.ray_free(x, y, sx, sy)
+                   and all(not terrain.los(*e["pos"][:2], sx, sy)
+                           and not terrain.los(*e["pos"][:2], dp[0], dp[1]) for e in nearby))
+        return covered, False
+
+    def _step(self, obs, zone_plan, world, path_cost, push, terrain) -> DropDecision:
         p = self.p
         t = float(obs.get("t", 0.0))
         me = obs["self"]
@@ -165,19 +191,27 @@ class DropPlanner:
             if ev.get("type") == "drop" and ev.get("id") is not None:
                 self.taken.add(ev["id"])
         zone = obs.get("zone")
+        available = obs.get("drops") or ()
+        if push:
+            for dr in available:
+                did, lands_in = dr["id"], dr.get("lands_in", 0)
+                if did not in self.drop_numbers and lands_in > 0:
+                    called = t + lands_in - self.fall_s
+                    self.drop_numbers[did] = next(
+                        (number for number, call in enumerate(self.call_times, 1) if abs(call - called) < 1), 0)
         # the zone tracker's urgency is the authority: never pull us away when the edge is critical
         if zone_plan is not None and getattr(zone_plan, "urgency", 0) >= 3:
             self._reset()
             return DropDecision(reason="zone critical")
 
-        near_us = 0
+        nearby = []
         if p.self_threat_radius_m > 0:
             for m in obs.get("mechs") or []:
                 if m.get("kind") == "mech" and math.hypot(m["pos"][0] - x, m["pos"][1] - y) < p.self_threat_radius_m:
-                    near_us += 1
+                    nearby.append(m)
 
-        best: Optional[Tuple[float, dict, float, float, int, float]] = None
-        for dr in obs.get("drops") or []:
+        best = None
+        for dr in available:
             did = dr.get("id")
             if did in self.taken or self.ignore_until.get(did, -1) > t:
                 continue
@@ -195,7 +229,9 @@ class DropPlanner:
                     expo = float(expo or 0.0)
                 except Exception:
                     plen, expo = euclid * 1.25, 0.0
-            if plen > p.max_dist_m:
+            number = self.drop_numbers.get(did, 0) if push else 0
+            reach_bonus = 90.0 if number == 2 else 145.0 if number == 3 else 0.0
+            if plen > p.max_dist_m + reach_bonus:
                 continue
             eta = plen / speed
             late = eta - lands_in                       # >0: we arrive after it lands
@@ -211,29 +247,41 @@ class DropPlanner:
             u -= p.time_cost_per_s * max(eta, lands_in) + p.exposure_cost * expo
             u -= p.threat_cost * n_thr + p.unseen_cost * mass
             holder = dr.get("holder")
-            if holder is not None and holder != my_id and euclid > p.contested_close_m:
+            cover_route = contest = False
+            if reach_bonus:
+                ring_enemies = [e for e in obs.get("mechs", ()) if e["kind"] == "mech"
+                                and math.hypot(e["pos"][0] - dp[0], e["pos"][1] - dp[1]) < p.threat_radius_m]
+                rival_holder = holder if holder != my_id else None
+                cover_route, contest = self._push_route(me, dp, ring, terrain, nearby, ring_enemies,
+                                                        rival_holder, eta, cap - prog)
+                if contest or (not n_thr and rival_holder is None):
+                    u += 0.32 if number == 2 else 0.52
+                if contest:
+                    u += p.threat_cost * n_thr
+            if holder is not None and holder != my_id and euclid > p.contested_close_m and not contest:
                 u -= p.contested_cost
             if did == self.cur_id:
                 u += 0.1                                 # hysteresis: don't flip between drops
             capturing_this = (dr.get("holder") == my_id and lands_in <= 0.0
                               and euclid < float(dr.get("radius", self.radius)) * p.ring_enter_frac)
-            if near_us and not capturing_this:
+            if nearby and not (capturing_this or cover_route or contest):
                 continue
             if best is None or u > best[0]:
-                best = (u, dr, eta, lands_in, n_thr, euclid)
+                best = (u, dr, eta, lands_in, n_thr, euclid, cover_route, contest)
 
         if best is None or best[0] < p.min_utility:
             self._reset()
             return DropDecision(reason="none worth it" if best else "no drops",
                                 utility=best[0] if best else 0.0)
 
-        u, dr, eta, lands_in, n_thr, euclid = best
+        u, dr, eta, lands_in, n_thr, euclid, cover_route, contest = best
         did, dp = dr["id"], dr["pos"]
         ring = float(dr.get("radius", self.radius))
         if did != self.cur_id:
             self.cur_id, self.in_ring_since = did, None
             self.last_progress, self.last_progress_t = 0.0, t
         dd = DropDecision(drop_id=did, utility=u)
+        dd.preempt_fight = cover_route or contest
         dd.preempt_regen = p.preempt_regen
         dd.preempt_retreat = euclid < p.preempt_retreat_m and n_thr == 0
 
@@ -248,7 +296,8 @@ class DropPlanner:
             if prog > self.last_progress + 1e-6 and dr.get("holder") == my_id:
                 self.last_progress_t = t
             self.last_progress = prog                              # a restart (prog drops) re-bases, not a stall
-            if t - self.last_progress_t > p.stall_s and t - self.in_ring_since > p.stall_s:
+            stall_s = max(p.stall_s, 6.0) if contest else p.stall_s
+            if t - self.last_progress_t > stall_s and t - self.in_ring_since > stall_s:
                 self.ignore_until[did] = t + p.retry_s
                 self._reset()
                 return DropDecision(reason="stalled", utility=u)

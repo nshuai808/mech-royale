@@ -220,7 +220,9 @@ class Bot:
                 self.zp = None
         self.dd = drops.DropDecision(reason="off")
         if self.dp is not None:
-            self.dd = self.dp.step(obs, zone_plan=self.zp)   # never raises
+            if not hasattr(self, "drop_push_on"):
+                self.drop_push_on = bool((load_params().get("drop_push") or {}).get("enabled", False))
+            self.dd = self.dp.step(obs, zone_plan=self.zp, push=self.drop_push_on, terrain=self.map)
 
         act = {"tick": obs["tick"]}
         if self.upg_ctx or self.wpn_ctx:
@@ -308,6 +310,11 @@ class Bot:
             self.mode = "evade"
             move, why = self._evade(threats)
             boost = me["energy"] > 25 and (hp_frac < 0.6 or len(exposed) >= 2)
+        elif dd.preempt_fight and dd.goal is not None and math.dist((x, y), dd.goal[:2]) >= 2.0:
+            self.mode, why = "drop", f"{dd.drop_id} {dd.phase} {dd.reason}"
+            gx, gy = dd.goal[:2]
+            move = self._go_point(gx, gy)
+            boost = dd.boost and me["energy"] > 30
         elif target is not None:
             self.mode, why = "fight", f"#{target['id']}"
             move = self._fight_move(target)
