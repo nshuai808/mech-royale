@@ -1,8 +1,10 @@
 package mech
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
+	"runtime/debug"
 	"sort"
 )
 
@@ -81,6 +83,7 @@ type Brain struct {
 	laserHeld    float64
 	Mode         string
 	Panics       int
+	LastPanic    string // panic value and stack of the last recovered panic (for local tools)
 
 	escLaunch, escLand [2]float64
 	escAt              float64
@@ -190,6 +193,7 @@ func (b *Brain) Act(o *Obs) (act Action) {
 	defer func() {
 		if r := recover(); r != nil {
 			b.Panics++
+			b.LastPanic = fmt.Sprintf("%v\n%s", r, debug.Stack())
 			a := b.lastAim
 			act = Action{Tick: o.Tick, Aim: &a}
 		}
@@ -309,7 +313,11 @@ func (b *Brain) observe(o *Obs) {
 				}
 			}
 		case "kill":
-			b.kills++
+			// Only mech kills explain a drop in alive (NPCs are not counted there). An NPC kill counted
+			// here would hide other mechs' deaths from the free-for-all detector below.
+			if _, npc := b.npcs[e.Target]; !npc {
+				b.kills++
+			}
 			delete(b.tracks, e.Target)
 		}
 	}
@@ -1935,8 +1943,8 @@ func squadParams(p Params) Params {
 	p.Lethal = true
 	p.Finish = 20
 	p.FightLoot = 40
-	p.NoMortar = false // umich-ibe: Practice: take a mortar when slot 2 is empty (upgrades to laser/lightning later)
 
+	p.CrowdHide = false // umich-ibe: Practice: no long retreats when 2-3 foes are in view (LoseRule pulses stay)
 	return p
 }
 
