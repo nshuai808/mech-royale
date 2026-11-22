@@ -160,7 +160,7 @@ func DefaultParams() Params {
 		Peek: true, LaserFirst: false, CrowdHide: true, Practice: true}
 
 	p.LaserFirst = true
-	p.CarefulAt = 240 // umich-ibe: careful settings from 240 s (no effect in a real FFA, which flips earlier)
+	p.CarefulAt = 180 // umich-ibe: careful settings from 180 s (no effect in a real FFA, which flips earlier)
 
 	return p
 }
