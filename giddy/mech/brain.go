@@ -1964,7 +1964,7 @@ func squadParams(p Params) Params {
 	p.LaserFirst = true
 	p.LaserRange = 120
 	p.LootRadius = 150
-	p.CrateUntil = 1e9
+	p.CrateUntil = 150 // umich-ibe: stop shooting crates after 150 s (was all match)
 	p.Stick = 120
 	p.HPw = 0.2
 	p.LowBonus = 100
@@ -1977,7 +1977,7 @@ func squadParams(p Params) Params {
 	p.LaserUp = true
 	p.Lethal = true
 	p.Finish = 20
-	p.FightLoot = 0 // umich-ibe: no cube walks mid-fight (was 40 m)
+	p.FightLoot = 40
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
