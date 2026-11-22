@@ -117,6 +117,7 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sat | `66e3589` | 3.02 | Swing 3 `t13-hunter`: aggression only while one hunter is on us. Calibrated sim +0.96 kills, real -0.63. Leaving cover loses. |
 | Sat 9:21 PM | `7744704` | 3.17 | Swing 4 `swing4`: integ-3 + finisher (no chase) + damage build. Worse. |
 | Sat | `515bce5` | **5.73** | `giddy-base`: switch to giddygiddyboy's MIT Go bot (`giddy/`, unchanged but the name; see `giddy/README.md`, `docs/leaderboard_study.md`). check.py PASS, replay p99 1.4 ms. **New best; now `main` and the base for improvements.** |
+| Sun | `b35b174` | 5.40 | giddy + practice flags UseDrops, NanoUp, Explore, CubeGoal 15 (stacked). -0.33 vs 5.73: something hurts; sim blames drops (1.93 vs 2.31). |
 | Sun | `da3afa0` | 3.46 | branch `claude/nifty-galileo-lw5l5t`: `ultra` (never flee, loot-first, jets, hops, bold drops). See `docs/trials_nifty_galileo.md`. |
 | Sun | `df31a39` | 3.63 | branch: "medium" (ultra, flee < 40% vs 2+, heal before hunting, no hops). Noise. |
 | Sun | `8ffc0c2` | 0.08 | PROBE pacifist (never shoots mechs, hides, farms). Points = our kills only; hiding never survives. Never ship. |
