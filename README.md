@@ -136,3 +136,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `d983a4c` | 5.75 | robust + practice upgrade order laser_damage, laser_charge before plating, armor. Behavior changed (not identical) but +0.02 is inside the ±0.25 noise: neutral, not harmful. |
 | Sun | `d5dffcc` | 5.67 | robust + practice `EngageDist = 90`. Neutral; the sim's +0.33 didn't transfer. |
 | Sun | `96a804f` | 5.67 | robust + practice `AllFoes = true`. Neutral: the sim's +0.40 (two seed pairs) didn't transfer, like EngageDist 90. The house-bot sim can't pick giddy combat flags. |
+| Sun | `79eb097` | 5.42 | robust + `BodyLoot` (practice: walk to each kill's body when clear, for its cubes + 2). -0.31: worse. Fifth cube-gathering change to lose; cubes are not the practice lever (the exposure costs more). |
