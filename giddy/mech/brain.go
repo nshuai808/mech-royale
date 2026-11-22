@@ -1963,7 +1963,7 @@ func squadParams(p Params) Params {
 	p.Peek = false
 	p.LaserFirst = true
 	p.LaserRange = 120
-	p.LootRadius = 200 // umich-ibe: loot within 200 m (was 150)
+	p.LootRadius = 150
 	p.CrateUntil = 1e9
 	p.Stick = 120
 	p.HPw = 0.2
@@ -1981,6 +1981,8 @@ func squadParams(p Params) Params {
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
+	p.LaserFirst = false // umich-ibe: practice: lightning ranks above laser (house bots walk into its 45 m cone)
+	p.LaserSeek = 0
 	return p
 }
 
