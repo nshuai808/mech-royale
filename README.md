@@ -162,7 +162,7 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `830814f` | 5.51 (builders-4) | 768b8a3 + regen guard (Codex priority 1: skip optional NPC/crate shots in the HealGate band). -0.24. |
 | Sun | `06383db` | 5.59 (builders-4) | 768b8a3 + practice upgrade order laser_damage, laser_charge, gun_damage, gun_rate, plating, armor. -0.16: neutral. |
 | Sun | `8621477` | **5.84 (builders-4)** | 768b8a3 + practice parameter switch at 5 s (was 20 s). +0.09: new best. Practice only: in the final it plays aggressive settings 5-20 s, so keep 768b8a3 as the FFA entry. |
-| Sun | `11242ed` | 5.51 (builders-4) | 768b8a3 + practice `CrateUntil = 150` (stop crate shots after 150 s). -0.24 vs 768b8a3: crates stay. |
+| Sun | `11242ed` | 5.52 (builders-4) | 768b8a3 + practice `CrateUntil = 150` (stop selecting crate and NPC farm goals after 150 s). -0.23 vs 768b8a3: crates stay. |
 | Sun | `d721f58` | 5.15 (builders-4) | 8621477 + practice `FightLoot = 0` (no cube walks during fights). -0.69: mid-fight cube pickup is valuable. |
 | Sun | `877119e` | 5.47 (builders-4) | 8621477 with the practice switch at 1 s (was 5 s). -0.37: 5 s stays. |
-| Sun | `2f9fdd6` | 5.45 (builders-4) | 8621477 + practice `FarmHP = 0.75` (farm only above 75 % HP). -0.39: every loot cut loses on builders-4 (FightLoot 0 -0.69, CrateUntil 150 -0.24). |
+| Sun 8:42 AM | `2f9fdd6` | 5.45 (builders-4) | 8621477 + FarmHP 0.75. Raising the quiet-period farming threshold cost 0.39 vs the 5.84 control. |

@@ -110,3 +110,20 @@ The practice target of 6.10 requires about 25 extra placement points per 96-matc
 | 3 | [Lightning matchup](https://github.com/nshuai808/mech-royale/commit/71096ec453ee210fd80a50cb9a8d9f9613378bc0) | Close on an isolated laser carrier when healthy, sufficiently energized, and within a short approach of lightning range. A laser carrier facing lightning instead prefers a range buffer. This exploits charge interruption, but only applies to specific loadouts. |
 
 All three passed Go unit tests, compiled for Linux amd64, and answered 300/300 protocol observations within 50 ms locally. Contact and lightning used native Windows binaries. Volley used Go WebAssembly on Node because Windows Application Control blocked its native executable. These checks establish protocol behavior. Match strength and FFA placement are unmeasured.
+
+## Revised queue after the 8:32–8:42 AM results
+
+The submitted bot code was compared directly with the scored control. Some immediate parent commits were other experiments whose settings had been restored before submission.
+
+| Submitted commit | Change from its control | Builders score | Difference |
+| --- | --- | ---: | ---: |
+| `d721f58` | Disable the usual mid-fight cube detour | 5.15 | −0.69 vs 5.84 |
+| `2f9fdd6` | Raise the quiet-period NPC/crate farming threshold from 50% HP to 75% | 5.45 | −0.39 vs 5.84 |
+| `877119e` | Enter squad settings at 1 s instead of 5 s | 5.47 | −0.37 vs 5.84 |
+| `11242ed` | End quiet-period crate **and NPC** goal selection at 150 s | 5.52 | −0.23 vs the 20 s control, 5.75 |
+
+The strongest signal is the cost of removing the nearby cube option. Earlier losses from body-loot trips and wider farming suggest a distinction between collecting resources along an existing fight and deliberately extending the trip. Aggregate scores cannot separate the value of the cubes from the movement used to reach them. The 1 s result also weakens the case for starting squad behavior progressively earlier.
+
+**Revised submission order.** First try `84780e6` (gun–laser timing). Of the three published candidates it most cleanly tests a combat gain while preserving resource decisions. Defer `ed07546` (sound acquisition) until the scan can be tested during otherwise idle aim; the published version can interrupt farming fire. Put `71096ec` (lightning matchup) behind a test that keeps the ordinary cube-detour decision available during the matchup. Both are still unscored in the four results above.
+
+**Revised interception experiment.** Start from `8621477`. First test pre-aiming a predicted crossing while following the baseline loot route, only when the torso would otherwise be idle. Compare damage dealt before the first incoming hit, time to the next kill, and cubes at the next contact on matched starts. Expand to rerouting only if pre-aim improves the opening exchange and the economy measurements hold up.
