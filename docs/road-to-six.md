@@ -46,6 +46,7 @@ Before submitting, run the repo's protocol and timing checks and coordinate a sc
 | #3 tuning `5722027` delays HealGate on `768b8a3` from 150 s to 200 s at the same 60% HP threshold. | Builders-4, 96 | −0.24 vs `768b8a3` | 5.51 | Keep the 150 s start. Timing test complete. |
 | #2 `c430120` adds DuelBoth to `768b8a3`. Break sight when the hunter wins the estimated trade, except for a finish under 1.2 s. | Builders-4, 96 | −0.35 vs `768b8a3` | 5.40 | Drop DuelBoth. Keep the control’s duel behavior. |
 | Early duels `f62bdcd` starts the control’s practice duel logic at 60 s instead of 150 s. HealGate still starts at 150 s. | Builders-4, 96 | −0.20 vs `768b8a3` | 5.55 | Keep the 150 s duel start. |
+| #3 tuning `cf0611d` lowers HealGate from 60% to 50% HP on `768b8a3`, still from 150 s. | Builders-4, 96 | −0.30 vs `768b8a3` | 5.45 | Keep 60%. Park threshold tuning. |
 
 **Note (Advit):** `8f7f9b8` is built on `515bce5`, not `robust`, so it lost robust's FFA-detector fix (an NPC kill counted as a mech
 kill can hide other mechs' deaths and keep giddy in its aggressive practice settings in the final). The #3 commit restores it.
@@ -57,7 +58,9 @@ HealGate from 200 s `5722027`.
 
 ## Analysis and next steps (Codex review, 2026-11-22)
 
-**What happened.** All four one-change trials scored below `768b8a3` (5.75). Starting duel logic at 60 s scored 5.55 (−0.20). Delaying HealGate to 200 s scored 5.51 (−0.24). Both gaps fit the estimated ±0.18–0.25 variation per submission. Keep both starts at 150 s. The batches give no reliable ranking of alternative start times. Corner (−0.27) and DuelBoth (−0.35) remain dropped. Whether the walk exposed us or DuelBoth abandoned winnable fights remains unverified. The control’s +0.17 over the original duel bot came from a bundle. [Builders-4 submissions through 3:23 AM ET](../coach/advit-submissions.md)
+**What happened.** All five one-change trials scored below `768b8a3` (5.75). Lowering HealGate to 50% scored 5.45 (−0.30). That gap exceeds the estimated ±0.18–0.25 variation for one submission, but two separate 96-match batches cannot establish that taking fights at 50–60% HP caused the loss. Keep 60% from 150 s. The earlier duel start (−0.20) and later HealGate start (−0.24) are within noise. Corner (−0.27) and DuelBoth (−0.35) remain dropped. [Builders-4 submissions through 3:40 AM ET](../coach/advit-submissions.md)
+
+**HealGate follow-up, zero slots.** Replay matched encounters after 150 s at 55% HP, where the thresholds differ. Count newly accepted fights, kills and HP at next contact. Try the same encounters at 45% and 65%, where both gates should agree on the initial decision. Spend the next slot on a specific missed recovery opportunity only if one shows up.
 
 **Early-duel follow-up, zero slots.** Compare `f62bdcd` and the control in matched 60–150 s encounters. Check when the bot keeps tracking a hunter through a brief loss of sight and whether it lands the next shot. If that helps, try enabling only that tracking behavior early in `giddy/mech/brain.go`, leaving duel positioning at 150 s. Park further clock sweeps and the combined Corner + delayed HealGate build (`009eb29`).
 
@@ -65,7 +68,7 @@ HealGate from 200 s `5722027`.
 
 | Priority | Experiment | What would justify the slot |
 | --- | --- | --- |
-| 1 | Test the #3 recovery window on `768b8a3` (`giddy/mech/brain.go`). Skip an optional NPC shot when hurt and four seconds into the regen wait. | Submit only if the bot enters the next duel with more HP and still fires immediately when the hunter rounds the corner. |
+| 1 | Test the #3 recovery window on `768b8a3` (`giddy/mech/brain.go`). At 55% HP behind cover, skip an optional NPC shot four seconds into the regen wait. | Keep the 60% gate. Submit only if the bot gains HP before the next duel and still fires immediately when the hunter rounds the corner. |
 | 2 | Narrow #2 follow-up on `768b8a3` (`giddy/mech/duel.go`). Veto a lightning approach only when an aimed laser can finish us before we reach lightning range. | First compare DuelBoth and the control on an ordinary gun trade and a lethal laser crossing. Try the veto only if it fixes the crossing while preserving fire from the current position and the safe immediate finish. |
 | 3 | #1 follow-up only if local scenarios implicate the walk: charge `cornerSpot` for exposure along the route (`giddy/mech/brain.go` on `7294ba0`). | Require the bot to reject an exposed crossing and still take a covered route. Compare against 5.48 to assess the change and 5.75 for selection. Otherwise leave Corner dropped. |
 | 4 | Early target tracking alone on `768b8a3` (proposed above). | Use a slot only if the same hunter is reacquired sooner and early kills hold up on both seed sets. |
