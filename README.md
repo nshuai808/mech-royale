@@ -175,3 +175,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `fa63d79` | 6.17 (builders-4) | README-only re-roll of `9fa225a` (identical bot code, fresh practice seeds; `9fa225a` itself 6.10-6.13). |
 | Sun | `d558ba9` | 5.91 (builders-4) | 9fa225a (zoro hybrid) with `OpeningSecs` 4 (was 5). -0.2 vs the hybrid: noise, leaning lower. Next: `df381f1` OpeningSecs 6. |
 | Sun ~10:50 | `41402c5` | **6.31 (builders-4)** | 9fa225a (zoro hybrid) with practice `SquadDuelLeave` 0.30 (was 0.35): hold one-on-ones against the squad a little longer. **New best.** Squad-stance only: the final (FFA after the cutoff via zoro's `FFAClock`) is unaffected. |
+| Final | `41402c5` | **10th overall** | Locked entry (6.31 practice, ~25th at the qualifying cutoff) finished 10th after qualifying and the final series. See `docs/wrapup.md`. |
