@@ -151,6 +151,7 @@ type Params struct {
 	Pursue     float64
 	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
 	HealFrom   float64 // umich-ibe: HealGate only applies after this match time (s)
+	LethalK    float64 // early partial-charge laser release when dmg*LethalK >= target HP (0 = giddy's 0.8)
 }
 
 func DefaultParams() Params {
@@ -1012,7 +1013,11 @@ func (b *Brain) step(o *Obs, act *Action) {
 					if holds(target.Weapons, "mortar") {
 						dmg *= 1 + w.Stats.Cookoff
 					}
-					if dmg*0.8 >= target.HP && math.Abs(angDiff(hy, me.Aim[0])) < tolY*0.9 && math.Abs(hp-me.Aim[1]) < tolP {
+					lk := 0.8
+					if b.P.LethalK > 0 {
+						lk = b.P.LethalK
+					}
+					if dmg*lk >= target.HP && math.Abs(angDiff(hy, me.Aim[0])) < tolY*0.9 && math.Abs(hp-me.Aim[1]) < tolP {
 						aim = [2]float64{hy, hp}
 						act.Fire[i] = false
 						break
@@ -1981,8 +1986,11 @@ func squadParams(p Params) Params {
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
-	p.LaserFirst = false // umich-ibe: practice: lightning ranks above laser (house bots walk into its 45 m cone)
-	p.LaserSeek = 0
+	// practice tuning from upstream giddy e19e3c8 as seen in waiprotein/mech-royale-bot (MIT)
+	p.Stick = 200
+	p.LowBonus = 200
+	p.HPw = 0.18
+	p.LethalK = 0.7
 	return p
 }
 
