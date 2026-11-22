@@ -141,3 +141,5 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `81f68b4` | 5.67 | robust + all neutral-or-better practice changes combined (laser-first upgrades, LaserHold, AllFoes, EngageDist 90, CrowdHide off). Neutral: the small effects don't add up. |
 | Sun 12:47 AM | `83d46a4` | 5.54 | `farm-early-laser`: until 70 s farm NPC drones from 250 m (valued higher, remembered 60 s) + laser_damage first in upgrades (on robust + zr-base switches off). -0.19: noise, no gain. Early cubes/laser upgrade is not the missing kill. |
 | Sun 1 AM | `d983a4c` | **5.46 (builders-4)** | Rescore on the new scorer (96 fresh random seeds, identical code keeps its first score). Was 5.75 on builders-3. ~Unchanged giddy, so **~5.46 is the new baseline**; noise now ~±0.18. |
+| Sun | `eed4dc6` | (accidental resubmit) | old v2-zone-drops Python bot; not an entry. |
+| Sun | `39847d4` | 5.30 (builders-4) | robust + laser-first upgrades + LaserHold + HealGate 0.6 from 150 s. -0.16 vs ~5.46 baseline (noise). |
