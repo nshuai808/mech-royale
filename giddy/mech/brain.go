@@ -1934,6 +1934,7 @@ func squadParams(p Params) Params {
 	p.LaserUp = true
 	p.Lethal = true
 	p.Finish = 20
+	p.CubeGoal = 21
 	p.FightLoot = 40
 
 	return p
