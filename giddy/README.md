@@ -16,6 +16,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `mech/brain.go` `Act`, `cmd/bot/main.go` | With `MECH_DEBUG=1`, recovered panics are printed to stderr with a stack (local tools only; off in matches) |
 | `mech/brain.go` | new `HealGate`/`HealFrom` (practice only, 0.6 from 150 s): in the mid game, below 60 % HP don't start a fight with a foe that isn't shooting us, isn't within 45 m, isn't below 30 % HP and isn't our current target |
 | `mech/brain.go` `upgradeOrderLaser` | practice only: laser_damage, laser_charge before plating, armor |
+| `mech/brain.go` `squadParams` | tuning: heal gate from 120 s (was 150 s) |
 
 Everything else is unchanged. Any later change goes in this table.
 
