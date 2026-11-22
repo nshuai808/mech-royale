@@ -70,3 +70,4 @@ Changes, all limited to practice games against the house squad (free-for-all pla
 - `SquadHunt` 80, `SquadHuntLaser` 100: only hunt nearby squad members (do not wake idle ones).
 
 > Re-roll 1: same code as `627ffea` (5.84 on 22 Nov 9:50 AM ET), re-submitted for a fresh set of practice seeds.
+> Re-roll 2: same code again, another fresh set of practice seeds.
