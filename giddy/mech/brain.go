@@ -1938,6 +1938,7 @@ func squadParams(p Params) Params {
 	p.UseDrops = true // umich-ibe: Practice: take supply drops (3 cubes + full HP/energy)
 	p.NanoUp = true // umich-ibe: Practice: upgrade order plating, armor, nanites, laser (faster heal between hunters)
 	p.Explore = true // umich-ibe: Practice: explore when idle (find crates, drones, weapons)
+	p.CubeGoal = 15 // umich-ibe: Practice: farm cubes up to 15 (upgrade threshold 15) instead of the stat cap 10
 
 	return p
 }

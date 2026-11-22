@@ -15,6 +15,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `mech/brain.go` `squadParams` | `p.UseDrops = true`: Practice: take supply drops (3 cubes + full HP/energy) |
 | `mech/brain.go` `squadParams` | `p.NanoUp = true`: Practice: upgrade order plating, armor, nanites, laser (faster heal between hunters) |
 | `mech/brain.go` `squadParams` | `p.Explore = true`: Practice: explore when idle (find crates, drones, weapons) |
+| `mech/brain.go` `squadParams` | `p.CubeGoal = 15`: Practice: farm cubes up to 15 (upgrade threshold 15) instead of the stat cap 10 |
 
 Everything else is unchanged. Any later change goes in this table.
 
