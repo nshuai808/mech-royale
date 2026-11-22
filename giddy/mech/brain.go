@@ -151,6 +151,7 @@ type Params struct {
 	Pursue     float64
 	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
 	HealFrom   float64 // umich-ibe: HealGate only applies after this match time (s)
+	LethalK    float64 // later upstream giddy: lethal laser release needs dmg*LethalK >= HP; 0 = 0.8 (original)
 }
 
 func DefaultParams() Params {
@@ -1012,7 +1013,11 @@ func (b *Brain) step(o *Obs, act *Action) {
 					if holds(target.Weapons, "mortar") {
 						dmg *= 1 + w.Stats.Cookoff
 					}
-					if dmg*0.8 >= target.HP && math.Abs(angDiff(hy, me.Aim[0])) < tolY*0.9 && math.Abs(hp-me.Aim[1]) < tolP {
+					lk := 0.8
+					if b.P.LethalK > 0 {
+						lk = b.P.LethalK
+					}
+					if dmg*lk >= target.HP && math.Abs(angDiff(hy, me.Aim[0])) < tolY*0.9 && math.Abs(hp-me.Aim[1]) < tolP {
 						aim = [2]float64{hy, hp}
 						act.Fire[i] = false
 						break
@@ -1977,7 +1982,13 @@ func squadParams(p Params) Params {
 	p.LaserUp = true
 	p.Lethal = true
 	p.Finish = 20
-	p.FightLoot = 40
+	// Later upstream giddy's squad retune (seen in several MIT/public forks): keep FightLoot 70 (the second
+	// assignment to 40 is gone), commit harder to the current target, favour nearly-dead targets more,
+	// weigh HP less against distance, and release a lethal laser only with more margin.
+	p.Stick = 200
+	p.LowBonus = 200
+	p.LethalK = 0.7
+	p.HPw = 0.18
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150

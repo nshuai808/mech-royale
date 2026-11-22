@@ -17,6 +17,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `mech/brain.go` | `HealGate`/`HealFrom` (practice only, 0.6 from 150 s): below 60 % HP don't start a fight with a foe that isn't shooting us, isn't within 45 m, isn't below 30 % HP and isn't our current target (road-to-six #3) |
 | `mech/brain.go` `observe` | robust's FFA-detector fix: an NPC kill doesn't count as a mech kill (no practice effect) |
 | `mech/brain.go` | switch to the practice parameter set after 5 s (was 20 s) |
+| `mech/brain.go` `squadParams`, `LethalK` | practice only: later upstream giddy's squad retune, as found in several forks of it: FightLoot 70 (drop the second assignment to 40), Stick 200, LowBonus 200, HPw 0.18, lethal laser release at dmg x 0.7 (`LethalK`; 0 keeps the original 0.8) |
 
 Everything else is unchanged. Any later change goes in this table.
 
