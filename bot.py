@@ -229,7 +229,12 @@ class Bot:
         hp_frac = me["hp"] / max(1.0, me["max_hp"])
         recently_hurt = self.t - self.last_hurt_t < 2.5
 
+        last = getattr(self, "finisher_last", None)
+        if last is not None and any(e.get("type") == "kill" and e.get("target") == last[0]
+                                    for e in obs.get("events", ())):
+            self.finisher_last = None
         target = self._choose_target(enemies, npcs)
+        finisher_on = self.finisher.get("enabled", False)
         # everyone we know about nearby, including ones that just ducked out of view
         threats = [(kx, ky) for (_, kx, ky) in self.known.values() if math.hypot(kx - x, ky - y) < 220]
         up = self.unseen_p
@@ -263,6 +268,15 @@ class Bot:
         dd = self.dd
         capturing = dd.goal is not None and dd.phase == "capture"
         late_on = self.lp is not None and self.lp.active(self.zn)
+        chase = None
+        if finisher_on and target is None and hp_frac >= 0.4 and not self.finisher_visible:
+            last = self.finisher_last
+            if last is not None:
+                _, fraction, (seen_t, sx, sy) = last
+                if (fraction < self.finisher.get("chase_frac", 0.4)
+                        and self.t - seen_t <= self.finisher.get("chase_s", 6.0)
+                        and math.hypot(sx - x, sy - y) > 3.0):
+                    chase = (sx, sy)
 
         # ---------------------------------------------------------- modes
         if not me["in_zone"] or hurry:
@@ -281,7 +295,11 @@ class Bot:
             # inside a ring we hold: 4 s alone = 3 cubes + full HP. Stay (and keep shooting) unless it stalls.
             self.mode, why = "drop", dd.reason
             move = dd.move if dd.move and (dd.move[0] or dd.move[1]) else None
-        elif threats and ((not self.aggro and (self._third_party(target, enemies, exposed)
+        elif chase is not None:
+            self.mode, why = "chase", "last seen"
+            move = self._go_point(*chase, 3.0)
+        elif threats and not (finisher_on and self._finishing(target)) and (
+                             (not self.aggro and (self._third_party(target, enemies, exposed)
                                                 or self._should_evade(close, hp_frac, recently_hurt, target)))
                           or (self.aggro and hp_frac < 0.25 and len(exposed) >= 2)
                           or self._multi_hit(hp_frac)
@@ -561,9 +579,32 @@ class Bot:
     def _choose_target(self, enemies, npcs):
         best, best_s = None, -1e9
         now = self.t
+        if not hasattr(self, "finisher"):
+            self.finisher = load_params().get("finisher") or {}
+            self.finisher_last = None
+        finisher = self.finisher
+        focused = finisher.get("enabled", False)
+        if focused:
+            m = self.map
+            enemies = [e for e in enemies if m is None or m.los(self.x, self.y, *e["pos"][:2])]
+            self.finisher_visible = enemies
+            last = self.finisher_last
+            lock_id = None
+            lock_frac = finisher.get("lock_frac", 0.35)
+            if last is not None and last[1] < lock_frac:
+                lock_id = last[0]
+                if (not any(e["id"] == lock_id for e in enemies)
+                        and now - last[2][0] <= finisher.get("lock_s", 1.5)):
+                    return None
+            best_ttk = math.inf
         laser = any(w and w["kind"] == "laser" for w in self.me["weapons"])
         far = 250 if laser else 130          # laser: hitscan 315 dmg to 280 m, snipe the hunter on its way in
         for e in enemies:
+            if focused and e["id"] == lock_id:
+                hp, max_hp = e.get("hp"), e.get("max_hp")
+                if hp is None or not max_hp or hp < lock_frac * max_hp:
+                    best = e
+                    break
             hit = self.attackers.get(e["id"])
             shooting_us = hit and now - hit[0] < 4
             if e["_d"] > max(230, far) or (e["_d"] > far and not shooting_us and not self.aggro):
@@ -575,8 +616,15 @@ class Bot:
                 s += (1 - e["hp"] / e["max_hp"]) * 5
             if e["id"] == self.target_id:
                 s += 2  # stickiness
-            if s > best_s:
-                best, best_s = e, s
+            if focused:
+                ttk = self._ttk(e)
+                ttk = math.inf if ttk is None else ttk
+                if (ttk, -s) >= (best_ttk, -best_s):
+                    continue
+                best_ttk = ttk
+            elif s <= best_s:
+                continue
+            best, best_s = e, s
         if best is None:
             for n in npcs:
                 hit = self.attackers.get(n["id"])
@@ -586,6 +634,12 @@ class Bot:
                     if best is None or n["_d"] < best["_d"]:
                         best = n
         self.target_id = best["id"] if best else None
+        if focused and best is not None and best["kind"] == "mech":
+            hp, max_hp = best.get("hp"), best.get("max_hp")
+            fraction = last[1] if last is not None and last[0] == best["id"] else 1.0
+            if hp is not None and max_hp:
+                fraction = hp / max_hp
+            self.finisher_last = (best["id"], fraction, self.known[best["id"]])
         return best
 
     def _roof_state(self):
@@ -682,7 +736,9 @@ class Bot:
 
     def _finishing(self, target):
         ttk = self._ttk(target)
-        return ttk is not None and ttk < self.unseen_p["finish_s"]
+        finisher = getattr(self, "finisher", {})
+        limit = finisher.get("finish_s", 2.0) if finisher.get("enabled", False) else self.unseen_p["finish_s"]
+        return ttk is not None and ttk < limit
 
     def _unseen_cover(self, target, hp_frac):
         """unseen_hit: a mech we can't see hit us within window_s: get out of its line (and the target's) unless

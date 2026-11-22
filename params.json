@@ -3,6 +3,14 @@
   "zone": {
     "enabled": true
   },
+  "finisher": {
+    "enabled": false,
+    "lock_frac": 0.35,
+    "lock_s": 1.5,
+    "chase_frac": 0.4,
+    "chase_s": 6.0,
+    "finish_s": 2.0
+  },
   "drops": {
     "enabled": true
   },
