@@ -151,3 +151,6 @@ distinguishable from noise, including the two "bests" (5.75 = +1.7 sd, 5.84 = +2
 **Sun ~10:45 AM ET:** `9fa225a` (zoro V2 + giddy practice economy and recovery, `zoro-giddy-hybrid`) scored **6.10**: about +0.6
 over every giddy variant (mean 5.47, sd 0.16), the first change of the bot itself that clearly beats the noise floor. The gain
 came from a different base bot, not from tuning giddy. Its FFA play (zoro's) is unchecked against the recorded showdowns.
+
+**Sun ~10:50 AM ET: `41402c5` scored 6.31** (zoro hybrid `9fa225a` + practice `SquadDuelLeave` 0.30, was 0.35). New best, above the
+6.21 target. It changes only the squad (practice) stance; zoro switches every match after the 11:00 cutoff to its FFA stance.
