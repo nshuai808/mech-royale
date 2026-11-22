@@ -1963,8 +1963,8 @@ func squadParams(p Params) Params {
 	p.Peek = false
 	p.LaserFirst = true
 	p.LaserRange = 120
-	p.LootRadius = 150
-	p.CrateUntil = 150 // umich-ibe: stop shooting crates after 150 s (was all match)
+	p.LootRadius = 100 // umich-ibe: loot within 100 m (was 150)
+	p.CrateUntil = 1e9
 	p.Stick = 120
 	p.HPw = 0.2
 	p.LowBonus = 100
