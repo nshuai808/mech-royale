@@ -131,6 +131,9 @@ Later results: `b35b174` (stack above) **5.40**; `6a7c88e` practice `NoMortar = 
 
 **Probe `27392a9` (no shots after 300 s) = 5.73, identical to base: giddy dies before 300 s in all 48 practice matches.**
 
+**Probe `5001814` (no shots after 150 s) = 4.58.** giddy's kill timeline: 4.58 by 150 s, 1.15 in 150-300 s, 0 after. The gap to the
+top is in the 150-300 s multi-hunter phase.
+
 **Clone arena exists** (lane 1, branch `claude/nifty-galileo-lw5l5t`, `tools/sim.py`): `--clones N --clone-cmd <binary>` makes N
 opponents real bot processes (own hello/slot, same observations and budget, coast on late answers); add `--ffa` so the rest
 fight everyone. ~6 s per match with 16 giddy processes. Calibration: giddy vs 15 giddy clones = 5.96 +- 0.97 pts over 24

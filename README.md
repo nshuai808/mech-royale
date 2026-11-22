@@ -130,3 +130,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `6a7c88e` | 5.52 | giddy + practice `NoMortar = false` (take a mortar when slot 2 is empty). -0.21, noise but no gain: mortars stay off. |
 | Sat 10:46 PM | `acffb08` | 5.10 | `s-no-explore`: Econ + FightLoot 70 + NanoUp (+ robust). Below s-all: Explore is not the culprit. NanoUp is in every losing run (s-all 5.25, this 5.10, Advit b35b174 5.40); next test NanoUp alone (`e9bd9ef`). |
 | Sun | `27392a9` | 5.73 | PROBE: giddy, no shots after 300 s. **Identical to base: giddy is dead before 300 s in all 48 practice matches.** Every kill happens before the rush; +1 must come from surviving it or from more kills before 300 s. Never ship. |
+| Sun | `5001814` | 4.58 | PROBE: giddy, no shots after 150 s. => giddy kills **4.58 by 150 s, 1.15 in 150-300 s, 0 after** (always dead by 300 s). The +1 is surviving / winning the multi-hunter phase. Never ship. |
