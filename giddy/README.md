@@ -14,7 +14,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
 | `mech/brain.go` `observe` | `kill` events for known NPCs no longer count as mech kills (they would hide other mechs' deaths from the FFA detector) |
 | `mech/brain.go` `Act`, `cmd/bot/main.go` | With `MECH_DEBUG=1`, recovered panics are printed to stderr with a stack (local tools only; off in matches) |
-| `mech/brain.go` `squadParams` | `p.AllFoes = true`: practice only, engage every visible foe within MaxTarget (sim +0.40 over 48 matches, kills 1.48 vs 1.19) |
+| `mech/brain.go` `squadParams` | `p.EngageDist = 90`: practice only, engage foes within 90 m (giddy 60; sim +0.33 over 48 matches) |
 
 Everything else is unchanged. Any later change goes in this table.
 

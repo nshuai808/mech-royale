@@ -1944,7 +1944,7 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.AllFoes = true // umich-ibe: practice only, engage every visible foe within MaxTarget (sim +0.40 over 48 matches, kills 1.48 vs 1.19)
+	p.EngageDist = 90 // umich-ibe: practice only, engage foes within 90 m (giddy 60; sim +0.33 over 48 matches)
 	return p
 }
 
