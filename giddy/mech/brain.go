@@ -607,7 +607,13 @@ func (b *Brain) step(o *Obs, act *Action) {
 	}
 	// Keep the same opponent briefly while moving behind nearby cover.
 	duelPhase := b.pracOn && now >= 150
-	if duelPhase && foe == nil && b.duelSeen > 0 && now-b.duelSeen < 1 {
+	// umich-ibe: from 60 s (not 150 s) keep the same hunter for 1 s through a brief loss of sight;
+	// duel positioning still starts at 150 s
+	trackPhase := b.pracOn && now >= 60
+	if trackPhase && !duelPhase && target != nil && target.Kind != "npc" {
+		b.duelID, b.duelSeen = target.ID, now
+	}
+	if trackPhase && foe == nil && b.duelSeen > 0 && now-b.duelSeen < 1 {
 		foe = b.tracks[b.duelID]
 	}
 	danger := false
@@ -957,9 +963,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 		tp = *farmPos
 		shootable = true
 	}
-	// umich-ibe: inside the HealGate band (from HealFrom, below HealGate) an optional NPC/crate shot would reset regen
-	gated := b.P.HealGate > 0 && now >= b.P.HealFrom && hpFrac < b.P.HealGate
-	if !isMech && target == nil && (b.retreat || hpFrac < 0.5 || gated) && !b.P.Econ && !defend {
+	if !isMech && target == nil && (b.retreat || hpFrac < 0.5) && !b.P.Econ && !defend {
 		shootable = false
 	}
 
