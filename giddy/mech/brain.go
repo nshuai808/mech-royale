@@ -450,7 +450,7 @@ var upgradeOrder = []string{
 
 // umich-ibe: practice (LaserUp) order puts laser damage first.
 var upgradeOrderLaser = []string{
-	"laser_damage", "laser_charge", "gun_damage", "gun_rate", "plating", "armor", "nanites", "lightning_efficiency", "lightning_range",
+	"laser_charge", "laser_damage", "plating", "armor", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
 	"servos", "gun_mag", "gun_velocity", "gyros", "lightning_chain", "reactor", "capacitor",
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
