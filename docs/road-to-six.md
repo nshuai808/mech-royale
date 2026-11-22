@@ -12,7 +12,7 @@ Start each branch at `8f7f9b8` so its result can be compared directly with the s
 | --- | --- | --- | --- |
 | 1. Choose the next fighting position | Open | — | Proposed |
 | 2. Predict both sides of a duel | Open | — | Proposed |
-| 3. Recover between hunters | Open | — | Proposed |
+| 3. Recover between hunters | Advit | `claude/nifty-galileo-lw5l5t` `768b8a3` | Ready to submit |
 
 ## 1. Choose the next fighting position
 
@@ -41,3 +41,7 @@ Before submitting, run the repo's protocol and timing checks and coordinate a sc
 | Experiment and commit | Scenario or seed set and count | Control → candidate metric | Builders score | Decision |
 | --- | --- | --- | --- | --- |
 | Control `8f7f9b8` | Builders batch, 96 matches | — | 5.58 | Current final pick |
+| #3 `768b8a3` = `8f7f9b8` + laser-first upgrades + HealGate 0.6 from 150 s + robust FFA fix | On robust (giddy without duel): HealGate 0.6/150 + laser-first 5.57; HealGate 0.7 5.30; from 120 s 5.51; baseline 5.46 | — | pending | |
+
+**Note (Advit):** `8f7f9b8` is built on `515bce5`, not `robust`, so it lost robust's FFA-detector fix (an NPC kill counted as a mech
+kill can hide other mechs' deaths and keep giddy in its aggressive practice settings in the final). The #3 commit restores it.
