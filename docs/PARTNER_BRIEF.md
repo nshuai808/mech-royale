@@ -129,6 +129,8 @@ its history and in `docs/trials_nifty_galileo.md`).
 
 Later results: `b35b174` (stack above) **5.40**; `6a7c88e` practice `NoMortar = false` **5.52** (noise, no gain, mortars stay off).
 
+**Probe `27392a9` (no shots after 300 s) = 5.73, identical to base: giddy dies before 300 s in all 48 practice matches.**
+
 **Clone arena exists** (lane 1, branch `claude/nifty-galileo-lw5l5t`, `tools/sim.py`): `--clones N --clone-cmd <binary>` makes N
 opponents real bot processes (own hello/slot, same observations and budget, coast on late answers); add `--ffa` so the rest
 fight everyone. ~6 s per match with 16 giddy processes. Calibration: giddy vs 15 giddy clones = 5.96 +- 0.97 pts over 24

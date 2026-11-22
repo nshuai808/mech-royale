@@ -129,3 +129,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `b35b174` | 5.40 | giddy + practice UseDrops, NanoUp, Explore, CubeGoal 15 (stacked, Advit). -0.33: sim blames Explore (1.48 vs 2.31) and drops (2.02). |
 | Sun | `6a7c88e` | 5.52 | giddy + practice `NoMortar = false` (take a mortar when slot 2 is empty). -0.21, noise but no gain: mortars stay off. |
 | Sat 10:46 PM | `acffb08` | 5.10 | `s-no-explore`: Econ + FightLoot 70 + NanoUp (+ robust). Below s-all: Explore is not the culprit. NanoUp is in every losing run (s-all 5.25, this 5.10, Advit b35b174 5.40); next test NanoUp alone (`e9bd9ef`). |
+| Sun | `27392a9` | 5.73 | PROBE: giddy, no shots after 300 s. **Identical to base: giddy is dead before 300 s in all 48 practice matches.** Every kill happens before the rush; +1 must come from surviving it or from more kills before 300 s. Never ship. |
