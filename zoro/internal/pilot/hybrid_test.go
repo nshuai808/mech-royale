@@ -6,7 +6,7 @@ import (
 )
 
 func TestHybridPractice(t *testing.T) {
-	p := Pilot{now: Defaults().OpeningSecs, T: Defaults(), o: &wire.Obs{Alive: 8, Zone: wire.Zone{NextRadius: 120}}}
+	p := Pilot{now: 5, T: Defaults(), o: &wire.Obs{Alive: 8, Zone: wire.Zone{NextRadius: 120}}}
 	if !p.practice() {
 		t.Fatal("practice opening")
 	}

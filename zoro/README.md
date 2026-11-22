@@ -2,7 +2,7 @@
 > commit `6da1573`), itself a fork of [zoro](https://github.com/Specz04/zoro) by Specz04. Both MIT; `LICENSE` is kept unchanged.
 > Our changes: the bot name, and two free-for-all-only nuances that act once the lobby is a proven free-for-all
 > (always after the cutoff), so practice play is unchanged: `FFAEngageAdd` 0.1 (start a hunt only at a slightly better
-> advantage) and `FFALootRadius` 180 m (was 220 m: shorter loot trips across open ground). Practice: `OpeningSecs` 6 (was 5). See `stance()` in
+> advantage) and `FFALootRadius` 180 m (was 220 m: shorter loot trips across open ground). Practice: `SquadDuelLeave` 0.30 (was 0.35). See `stance()` in
 > `internal/pilot/threats.go`. The top-level `Dockerfile` builds this folder.
 
 # zoro
