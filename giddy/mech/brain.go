@@ -161,6 +161,9 @@ type Params struct {
 	FarmEarlyR float64
 	// umich-ibe: LaserDmgFirst: laser_damage goes first in the upgrade order (4 laser hits kill a 1400 HP mech).
 	LaserDmgFirst bool
+	// umich-ibe: MildLose: the lose rule's crowd triggers need lower HP: 2+ near under 35% (giddy 55%),
+	// 3+ near under 55% (giddy 80%).
+	MildLose bool
 }
 
 func DefaultParams() Params {
@@ -655,6 +658,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 			}
 		}
 		losing := (near >= 2 && hpFrac < 0.55) || (near >= 3 && hpFrac < 0.8)
+		if b.P.MildLose {
+			losing = (near >= 2 && hpFrac < 0.35) || (near >= 3 && hpFrac < 0.55)
+		}
 		if b.P.NoCrowdLose {
 			losing = false
 		}
@@ -1972,6 +1978,7 @@ func squadParams(p Params) Params {
 	p.Lethal = true
 	p.Finish = 20
 	p.FightLoot = 40
+	p.MildLose = true
 
 	return p
 }

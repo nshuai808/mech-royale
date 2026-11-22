@@ -14,6 +14,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
 | `mech/brain.go` `observe` | `kill` events for known NPCs no longer count as mech kills (they would hide other mechs' deaths from the FFA detector) |
 | `mech/brain.go` `Act`, `cmd/bot/main.go` | With `MECH_DEBUG=1`, recovered panics are printed to stderr with a stack (local tools only; off in matches) |
+| `mech/brain.go` lose rule + `squadParams` (practice mode) | MildLose: retreat when 2+ near under 35% HP (was 55%) or 3+ near under 55% (was 80%) |
 
 Everything else is unchanged. Any later change goes in this table.
 
