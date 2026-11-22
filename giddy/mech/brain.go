@@ -1953,8 +1953,8 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
-	p.HealFrom = 120
+	p.HealGate = 0.7 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
+	p.HealFrom = 150
 	return p
 }
 
