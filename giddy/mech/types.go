@@ -290,17 +290,8 @@ type Obs struct {
 	Sounds      []Sound    `json:"sounds"`
 	Events      []Event    `json:"events"`
 	Drops       []Drop     `json:"drops"`
-	Beams       []Beam     `json:"beams"`
 	Zone        Zone       `json:"zone"`
 	Offer       *Offer     `json:"offer"`
-}
-
-// Beam: a laser beam or lightning arc fired by another mech since our last observation that we could see.
-type Beam struct {
-	By   int     `json:"by"`
-	Kind string  `json:"kind"`
-	Path []Vec3  `json:"path"`
-	Age  float64 `json:"age"`
 }
 
 type Action struct {

@@ -17,9 +17,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `mech/brain.go` | `HealGate`/`HealFrom` (practice only, 0.6 from 150 s): below 60 % HP don't start a fight with a foe that isn't shooting us, isn't within 45 m, isn't below 30 % HP and isn't our current target (road-to-six #3) |
 | `mech/brain.go` `observe` | robust's FFA-detector fix: an NPC kill doesn't count as a mech kill (no practice effect) |
 | `mech/brain.go` | switch to the practice parameter set after 5 s (was 20 s) |
-| `mech/types.go`, `mech/brain.go` | `ModeDetect`: free-for-all after 5 uncredited deaths (a death of a mech we hit in the last 6 s, now out of view, counts as ours) (beam rule: 2 laser beams whose whole path stays > 15 m from us, default OFF); replaces giddy's 'one unexplained death for 0.5 s' rule, which a single zone/drone death in practice could trip |
-| `mech/brain.go` `zoneGoal` | `ZoneLock`: when outside the safe disc, one walkable goal per zone phase (kept until the phase changes or it stops being safe) |
-| `mech/brain.go` target choice | `LockS` (practice, 60 s): keep a committed target while tracked, unless another foe hitting us is under half its distance |
+| `mech/brain.go` `observe` | `CarefulAt` 240 s: from then on play giddy's careful (FFA) settings for good; giddy's own quick flip after any unexplained death helped (removing it scored 5.11 vs 5.84) |
 
 Everything else is unchanged. Any later change goes in this table.
 

@@ -97,17 +97,8 @@ type Brain struct {
 	notPractice        bool
 	startAlive, kills  int
 	otherDead          int
-	// umich-ibe ModeDetect (Advit/Nathanael): count whole uncredited deaths, credit recent hits, watch foreign beams
-	hitAt                    map[int]float64
-	prevAlive                int
-	uncredited, foreignBeams int
-	zlKey                    [3]float64 // umich-ibe ZoneLock: phase key and locked goal
-	zl                       [2]float64
-	zlOK                     bool
-	lockID                   int // umich-ibe LockS: committed practice target and since when
-	lockAt                   float64
-	stickID                  int
-	stickAt, loseAt          float64
+	stickID            int
+	stickAt, loseAt    float64
 }
 
 type Params struct {
@@ -158,13 +149,7 @@ type Params struct {
 	FinishHP   float64
 	FinishRush bool
 	Pursue     float64
-	ModeDetect bool    // umich-ibe: FFA after UncredFFA uncredited deaths or BeamFFA foreign laser beams (not 0.5 s of any one)
-	UncredFFA  int     // umich-ibe: uncredited deaths that mean free-for-all
-	BeamFFA    int     // umich-ibe: foreign laser beams (whole path > BeamClear m from us) that mean free-for-all
-	BeamClear  float64 // umich-ibe: m
-	CreditS    float64 // umich-ibe: a death of a mech we hit within this many s (now out of view) is ours
-	ZoneLock   bool    // umich-ibe: keep one walkable zone goal per phase instead of re-picking every decision
-	LockS      float64 // umich-ibe: practice, keep a committed target up to this many s (0 = off)
+	CarefulAt  float64 // umich-ibe: from this match time, switch to the careful (FFA) settings for good (0 = off)
 	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
 	HealFrom   float64 // umich-ibe: HealGate only applies after this match time (s)
 }
@@ -175,9 +160,7 @@ func DefaultParams() Params {
 		Peek: true, LaserFirst: false, CrowdHide: true, Practice: true}
 
 	p.LaserFirst = true
-	// umich-ibe ModeDetect (Advit/Nathanael's observations): 5 uncredited deaths or 2 foreign laser beams
-	p.ModeDetect, p.UncredFFA, p.BeamFFA, p.BeamClear, p.CreditS = true, 5, 0, 15, 6 // beams off (final-only, #2)
-	p.ZoneLock = true                                                                // umich-ibe: one zone goal per phase
+	p.CarefulAt = 240 // umich-ibe: careful settings from 240 s (no effect in a real FFA, which flips earlier)
 
 	return p
 }
@@ -313,17 +296,9 @@ func (b *Brain) observe(o *Obs) {
 	upd(b.crates, o.Crates)
 	upd(b.cubes, o.Cubes)
 	upd(b.pickups, o.Pickups)
-	killsNow := 0
 	for i := range o.Events {
 		e := &o.Events[i]
 		switch e.Type {
-		case "hit":
-			if e.Target >= 0 && e.Target < 100 {
-				if b.hitAt == nil {
-					b.hitAt = map[int]float64{}
-				}
-				b.hitAt[e.Target] = now
-			}
 		case "damaged":
 			if e.Weapon == "npc" && e.Bearing != nil {
 				b.npcHurt, b.npcBearing = now, *e.Bearing
@@ -345,8 +320,6 @@ func (b *Brain) observe(o *Obs) {
 			// here would hide other mechs' deaths from the free-for-all detector below. (from robust)
 			if _, npc := b.npcs[e.Target]; !npc {
 				b.kills++
-				killsNow++
-				delete(b.hitAt, e.Target)
 			}
 			delete(b.tracks, e.Target)
 		}
@@ -356,17 +329,16 @@ func (b *Brain) observe(o *Obs) {
 		b.base, b.baseSet = b.P, true
 		b.startAlive = o.Alive
 	}
-	if b.P.ModeDetect || b.base.ModeDetect {
-		b.modeDetect(o, killsNow)
+	if b.startAlive-o.Alive-b.kills > 0 {
+		b.otherDead++
 	} else {
-		if b.startAlive-o.Alive-b.kills > 0 {
-			b.otherDead++
-		} else {
-			b.otherDead = 0
-		}
-		if b.otherDead >= 5 {
-			b.notPractice = true
-		}
+		b.otherDead = 0
+	}
+	if b.otherDead >= 5 {
+		b.notPractice = true
+	}
+	if b.P.CarefulAt > 0 && now >= b.P.CarefulAt {
+		b.notPractice = true // umich-ibe: late in a match play giddy's careful (FFA) settings
 	}
 	if on := b.base.Practice && !b.notPractice && now > 5; on != b.pracOn {
 		b.pracOn = on
@@ -454,22 +426,7 @@ func (b *Brain) zoneGoal(z *Zone, x, y float64) (float64, float64) {
 	if d <= r {
 		return x, y
 	}
-	gx, gy := z.NextCenter[0]+dx/d*r, z.NextCenter[1]+dy/d*r
-	if !b.P.ZoneLock {
-		return gx, gy
-	}
-	key := [3]float64{z.NextCenter[0], z.NextCenter[1], z.NextRadius}
-	if b.zlOK && b.zlKey == key && hyp(b.zl[0]-z.NextCenter[0], b.zl[1]-z.NextCenter[1]) <= r {
-		return b.zl[0], b.zl[1]
-	}
-	// one goal per phase, snapped to the nearest walkable cell if that stays inside the safe disc
-	if c := b.W.NearestFree(b.W.Cell(gx, gy)); c >= 0 {
-		if sx, sy := b.W.CellPos(c); hyp(sx-z.NextCenter[0], sy-z.NextCenter[1]) <= r {
-			gx, gy = sx, sy
-		}
-	}
-	b.zlKey, b.zl, b.zlOK = key, [2]float64{gx, gy}, true
-	return gx, gy
+	return z.NextCenter[0] + dx/d*r, z.NextCenter[1] + dy/d*r
 }
 
 func hasWeapon(ws []*WeaponState, kind string) (int, *WeaponState) {
@@ -565,16 +522,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 	if b.P.HPw > 0 {
 		hpw = b.P.HPw
 	}
-	// umich-ibe LockS: keep the committed practice target, unless another foe hitting us is less than half as far
-	lockOn := false
-	if lt := b.tracks[b.lockID]; b.P.LockS > 0 && lt != nil && now-b.lockAt < b.P.LockS && now-lt.Seen < 2.5 {
-		lockOn = true
-		for _, t2 := range b.tracks {
-			if t2 != lt && now-t2.HitMe < 2 && t2.Dist < 0.5*lt.Dist {
-				lockOn = false
-			}
-		}
-	}
 	for _, t := range b.tracks {
 		if now-t.Seen > 2.5 {
 			continue
@@ -643,9 +590,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 		if b.P.Stick > 0 && t.ID == b.stickID && now-b.stickAt < 2 {
 			s -= b.P.Stick
 		}
-		if lockOn && t.ID == b.lockID {
-			s -= 1000
-		}
 		if now-t.HitMe < 4 {
 			s -= 40
 		}
@@ -658,9 +602,6 @@ func (b *Brain) step(o *Obs, act *Action) {
 	}
 	if target != nil {
 		b.stickID, b.stickAt = target.ID, now
-		if target.Kind != "npc" && (target.ID != b.lockID || now-b.lockAt >= b.P.LockS) {
-			b.lockID, b.lockAt = target.ID, now
-		}
 	}
 	foe := target
 	if foe == nil && b.P.Peek {
@@ -2045,64 +1986,7 @@ func squadParams(p Params) Params {
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
-	p.LockS = 60 // umich-ibe: practice, keep a committed target up to 60 s
 	return p
-}
-
-// modeDetect: count deaths we didn't cause (crediting recent hits on mechs now out of view) and laser beams that
-// never come near us. Practice squads never fight each other, so either signal means a free-for-all.
-func (b *Brain) modeDetect(o *Obs, killsNow int) {
-	now, me := b.now, &o.Self
-	if b.prevAlive == 0 {
-		b.prevAlive = o.Alive
-	}
-	unexplained := b.prevAlive - o.Alive - killsNow
-	b.prevAlive = o.Alive
-	visible := map[int]bool{}
-	for i := range o.Mechs {
-		visible[o.Mechs[i].ID] = true
-	}
-	for ; unexplained > 0; unexplained-- {
-		credited := false
-		for id, t := range b.hitAt {
-			if now-t < b.base.CreditS && !visible[id] {
-				delete(b.hitAt, id)
-				credited = true
-				break
-			}
-		}
-		if !credited {
-			b.uncredited++
-		}
-	}
-	for i := range o.Beams {
-		bm := &o.Beams[i]
-		if bm.Kind != "laser" || bm.By == b.Slot || len(bm.Path) < 2 {
-			continue
-		}
-		near := false
-		for k := 0; k+1 < len(bm.Path); k++ {
-			if segDist(me.Pos[0], me.Pos[1], bm.Path[k][0], bm.Path[k][1], bm.Path[k+1][0], bm.Path[k+1][1]) < b.base.BeamClear {
-				near = true
-			}
-		}
-		if !near {
-			b.foreignBeams++
-		}
-	}
-	if b.uncredited >= b.base.UncredFFA || (b.base.BeamFFA > 0 && b.foreignBeams >= b.base.BeamFFA) {
-		b.notPractice = true
-	}
-}
-
-func segDist(px, py, ax, ay, bx, by float64) float64 {
-	dx, dy := bx-ax, by-ay
-	l2 := dx*dx + dy*dy
-	f := 0.0
-	if l2 > 0 {
-		f = clamp(((px-ax)*dx+(py-ay)*dy)/l2, 0, 1)
-	}
-	return hyp(px-(ax+dx*f), py-(ay+dy*f))
 }
 
 func (b *Brain) cubeCap() int {
