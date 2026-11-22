@@ -126,7 +126,12 @@ class Bot:
         self.roam_fix = bool((load_params().get("roam_fix") or {}).get("enabled", False))
         self.fail_goal, self.fail_t = None, -99.0
         # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
-        self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
+        ag = load_params().get("aggro") or {}
+        self.aggro = bool(ag.get("enabled", False))
+        # aggro.mode "hunted": aggression only in practice-like situations (one hunter at a time), off as soon as a second
+        # mech hits us or is in sight (free-for-all / pile-up); re-evaluated every decision
+        self.aggro_hunted = self.aggro and ag.get("mode") == "hunted"
+        self.aggro_window = float(ag.get("window_s", 20.0))
         # docs/stuck_pocket.md: escalating unstick (climb toward the goal, slide one side, then a long jet climb)
         self.unstick_v2 = bool((load_params().get("unstick") or {}).get("v2", False))
         self.upg_ctx = bool((load_params().get("upgrade_ctx") or {}).get("enabled", False))
@@ -245,6 +250,9 @@ class Bot:
         recently_hurt = self.t - self.last_hurt_t < 2.5
 
         self._enemies = enemies
+        if self.aggro_hunted:
+            hitters = {i for i, (at, _) in self.attackers.items() if i < 100 and self.t - at < self.aggro_window}
+            self.aggro = len(hitters) <= 1 and len(enemies) <= 1
         target = self._choose_target(enemies, npcs)
         # everyone we know about nearby, including ones that just ducked out of view
         threats = [(kx, ky) for (_, kx, ky) in self.known.values() if math.hypot(kx - x, ky - y) < 220]
