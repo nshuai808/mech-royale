@@ -9,6 +9,7 @@ import (
 const lat = 0.075
 
 type Track struct {
+	clearSeen float64
 	MechSeen
 	Seen    float64
 	HitMe   float64
@@ -29,6 +30,7 @@ type known struct {
 type circle struct{ X, Y, R float64 }
 
 type Brain struct {
+	lane interceptPlan
 	W    *World
 	Cfg  Config
 	Slot int
@@ -256,6 +258,9 @@ func (b *Brain) observe(o *Obs) {
 		if !t.LOS && m.Kind == "mech" {
 			h := b.Cfg.Mech.Height * b.scaleOf(m.Cubes)
 			t.LOS = b.W.Clear(muzzle, Vec3{m.Pos[0], m.Pos[1], m.Pos[2] + h*0.85})
+		}
+		if t.LOS {
+			t.clearSeen = now
 		}
 		if t.Dist > 1 {
 			t.Closing = -((m.Vel[0]-me.Vel[0])*dx + (m.Vel[1]-me.Vel[1])*dy) / t.Dist
@@ -857,6 +862,17 @@ func (b *Brain) step(o *Obs, act *Action) {
 		}
 	}
 
+	var crossing Vec3
+	if b.pracOn && me.Grounded && foe == nil && (mode == "idle" || mode == "zone-walk") && !zoneShould &&
+		now-b.lastHurt > 2.5 && (b.npcHurt <= 0 || now-b.npcHurt > 3) && !b.retreat {
+		if lane, ok := b.intercept(o, seen); ok {
+			dx, dy := lane.stand[0]-x, lane.stand[1]-y
+			scale := math.Max(1, hyp(dx, dy))
+			mx, my = dx/scale, dy/scale
+			crossing, mode = lane.cross, "intercept"
+		}
+	}
+
 	if escJump {
 		act.Jump = true
 	}
@@ -1070,6 +1086,10 @@ func (b *Brain) step(o *Obs, act *Action) {
 	if coveredDuel != nil && laser != nil && laser.Charge > 0 {
 		slot, _ := hasWeapon(me.Weapons, "laser")
 		act.Fire[slot] = true
+	}
+	if mode == "intercept" && !haveAim {
+		aim = [2]float64{math.Atan2(crossing[1]-y, crossing[0]-x), math.Atan2(crossing[2]-muzzle[2], hyp(crossing[0]-x, crossing[1]-y))}
+		haveAim = true
 	}
 	if !haveAim {
 
