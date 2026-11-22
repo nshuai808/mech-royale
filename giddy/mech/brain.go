@@ -1936,6 +1936,7 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 	p.UseDrops = true // umich-ibe: Practice: take supply drops (3 cubes + full HP/energy)
+	p.NanoUp = true // umich-ibe: Practice: upgrade order plating, armor, nanites, laser (faster heal between hunters)
 
 	return p
 }
