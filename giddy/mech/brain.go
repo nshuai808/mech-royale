@@ -335,7 +335,7 @@ func (b *Brain) observe(o *Obs) {
 	if b.otherDead >= 5 {
 		b.notPractice = true
 	}
-	if on := b.base.Practice && !b.notPractice && now > 20; on != b.pracOn {
+	if on := b.base.Practice && !b.notPractice && now > 5; on != b.pracOn {
 		b.pracOn = on
 		b.P = b.base
 		if on {
@@ -1971,13 +1971,13 @@ func squadParams(p Params) Params {
 	p.MaxTarget = 240
 	p.LoseRule = true
 	p.FightLoot = 70
-	p.FarmHP = 0.75 // umich-ibe: farm NPCs/crates only above 75 % HP (was 50 %)
+	p.FarmHP = 0.5
 
 	p.LaserSeek = 240
 	p.LaserUp = true
 	p.Lethal = true
 	p.Finish = 20
-	p.FightLoot = 40
+	p.FightLoot = 0 // umich-ibe: no cube walks mid-fight (was 40 m)
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
