@@ -80,7 +80,9 @@ func TestMatchSmoke(t *testing.T) {
 	if roofs, _ := g.Roofs(); len(roofs) == 0 {
 		t.Fatalf("expected the tall building to give a usable roof")
 	}
-	p := New(h, m, g, Defaults())
+	tuning := Defaults()
+	tuning.FFAClock = false // Exercise the practice lobby independently of wall time.
+	p := New(h, m, g, tuning)
 
 	pos := vec3{-150, -150, m.Ground(-150, -150)}
 	enemy := vec3{-60, -150, m.Ground(-60, -150)}
@@ -117,8 +119,8 @@ func TestMatchSmoke(t *testing.T) {
 		if err := json.Unmarshal(cmd.AppendLine(nil), &check); err != nil {
 			t.Fatalf("tick %d: invalid command JSON: %v", tick, err)
 		}
-		if tick == 600 && cmd.Pick != 1 {
-			t.Errorf("expected plating (choice 1), got %d", cmd.Pick)
+		if tick == 600 && cmd.Pick != 0 {
+			t.Errorf("expected squad sensors (choice 0), got %d", cmd.Pick)
 		}
 		// integrate our movement crudely
 		pos[0] = clamp(pos[0]+cmd.Move[0]*11.7*0.1, -199, 199)

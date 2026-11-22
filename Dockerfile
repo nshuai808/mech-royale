@@ -3,8 +3,7 @@
 # as uid 65534, with the map mounted read-only at /arena.
 #
 # Runs the Go bot in zoro/: Team Sulertia's "V2" fork (TEMOtkesh/mech-royale-bot, branch v2, 6da1573) of
-# Specz04's zoro, both MIT licensed (see zoro/LICENSE and zoro/README.md). Our changes: the bot name and two
-# free-for-all-only nuances (zoro/README.md); practice play is unchanged.
+# Specz04's Zoro. Team-specific practice and FFA changes are documented in zoro/README.md.
 # giddy/ (our previous entry) and the Python bot stay in the repo but are not in this image.
 # Toolchain image pinned by digest (the one zoro's own Dockerfile uses) so finalist rebuilds are identical.
 FROM golang:1.25.4-alpine3.22@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb AS build

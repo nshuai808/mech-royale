@@ -71,3 +71,7 @@ Changes, all limited to practice games against the house squad (free-for-all pla
 
 > Re-roll 1: same code as `627ffea` (5.84 on 22 Nov 9:50 AM ET), re-submitted for a fresh set of practice seeds.
 > Re-roll 2: same code again, another fresh set of practice seeds.
+
+## Giddy 5.84 hybrid
+
+Based on the team's Sulertia V2 branch at 95b025e and Giddy practice entry 8621477. Zoro supplies weapon handling, tier-aware duel odds, navigation and FFA behavior. The hybrid enters squad stance after five seconds if the lobby detector allows it. During squad fights, cube detours have a 40 m limit (22.8 m at half HP or below), including piles. From 150 s, a mech below 60% HP defers new distant, healthy hunters while looting or recovering. Close opponents, recent attackers, nearly defeated enemies, current fights and the closing endgame remain eligible. These changes are experimental. The inherited wall-clock rule selects FFA after the competition cutoff.

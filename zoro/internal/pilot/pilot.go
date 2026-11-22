@@ -125,6 +125,8 @@ type Pilot struct {
 
 	// decision state
 	mode       string
+	fightID    int
+	fightT     float64
 	targetID   int
 	retreating bool
 	retreatT   float64

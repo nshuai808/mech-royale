@@ -307,10 +307,7 @@ func (p *Pilot) cubeNearby(tgt *threat, st stance, hpFrac float64) *Item {
 				pile++
 			}
 		}
-		limit := 40.0
-		if pile >= 2 {
-			limit = 110
-		}
+		limit := fightCubeReach(st.squad, hpFrac, pile)
 		d := flatDist(p.pos, c.Pos)
 		if d > limit || (d > 30 && hpFrac < 0.3) {
 			continue
@@ -371,3 +368,13 @@ func (p *Pilot) futile(id int, hp, limit float64) bool {
 
 // armed reports whether we carry two weapons.
 func (p *Pilot) armed() bool { return p.slots[0].ok && p.slots[1].ok }
+
+func fightCubeReach(squad bool, hpFrac float64, pile int) float64 {
+	if squad && hpFrac <= 0.5 {
+		return 40 * 0.57
+	}
+	if !squad && pile >= 2 {
+		return 110
+	}
+	return 40
+}

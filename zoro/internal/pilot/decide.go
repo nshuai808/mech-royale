@@ -93,7 +93,7 @@ func (p *Pilot) pickTarget(tn *turn) {
 			tn.pressure += t.dps
 			tn.engaged++
 		}
-		if !t.c.Listed {
+		if !t.c.Listed || p.deferHunter(tn.st, tn.hpFrac, t.c, t.d) {
 			continue
 		}
 		s := 1 / (1 + t.d/60)
@@ -600,6 +600,7 @@ func (p *Pilot) fleeFrom(tn *turn) *threat {
 func (p *Pilot) modeFight(tn *turn) {
 	p.mode = "fight"
 	tgt := tn.tgt
+	p.fightID, p.fightT = tgt.c.ID, p.now
 	switch {
 	case !tn.onRoof && p.weaponNearby(32) != nil:
 		w := p.weaponNearby(32)

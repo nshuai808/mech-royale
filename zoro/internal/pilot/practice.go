@@ -61,6 +61,9 @@ func (p *Pilot) seekTarget(st stance, hpFrac float64) (x, y float64, id int, ok 
 			continue
 		}
 		d := flatDist(p.pos, c.Pos)
+		if p.deferHunter(st, hpFrac, c, d) {
+			continue
+		}
 		if d > p.T.SeekRange || !p.safeLater(c.Pos[0], c.Pos[1], 8, 6) {
 			continue
 		}
@@ -116,4 +119,14 @@ func (p *Pilot) jink(tn *turn) {
 func (p *Pilot) patient(tn *turn) bool {
 	return tn.st.squad && p.T.PatientSecs > 0 && p.now < p.T.PatientSecs &&
 		(p.o.Self.Cubes < p.T.PatientCubes || p.holding("laser") < 0)
+}
+
+// Giddy's recovery window applies before committing to a fresh hunter.
+// Keep accounting for its pressure and always allow a recent attacker or finish.
+func (p *Pilot) deferHunter(st stance, hpFrac float64, c *Contact, distance float64) bool {
+	if !st.squad || p.now < 150 || hpFrac >= 0.6 || p.o.Alive <= 3 || p.o.Zone.NextRadius <= 70 {
+		return false
+	}
+	continued := c.ID == p.fightID && p.now-p.fightT < 2
+	return !continued && p.now-c.HitMeT >= 4 && distance > 45 && c.MaxHP > 0 && c.HP >= 0.3*c.MaxHP
 }
