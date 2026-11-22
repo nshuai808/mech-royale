@@ -151,7 +151,6 @@ type Params struct {
 	Pursue     float64
 	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
 	HealFrom   float64 // umich-ibe: HealGate only applies after this match time (s)
-	DuelBoth   bool    // umich-ibe: duel phase, break sight when the foe would kill us before we finish it
 }
 
 func DefaultParams() Params {
@@ -607,7 +606,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 		foe = hidden
 	}
 	// Keep the same opponent briefly while moving behind nearby cover.
-	duelPhase := b.pracOn && now >= 150
+	duelPhase := b.pracOn && now >= 60
 	if duelPhase && foe == nil && b.duelSeen > 0 && now-b.duelSeen < 1 {
 		foe = b.tracks[b.duelID]
 	}
@@ -1982,7 +1981,6 @@ func squadParams(p Params) Params {
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
-	p.DuelBoth = true // umich-ibe: practice only, duel phase: compare both sides' time to kill (road-to-six #2)
 	return p
 }
 
