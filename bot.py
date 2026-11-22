@@ -132,6 +132,8 @@ class Bot:
         # mech hits us or is in sight (free-for-all / pile-up); re-evaluated every decision
         self.aggro_hunted = self.aggro and ag.get("mode") == "hunted"
         self.aggro_window = float(ag.get("window_s", 20.0))
+        self.aggro_hold = float(ag.get("off_hold_s", 5.0))   # hysteresis: stay off this long after switching off
+        self.aggro_off_t = -99.0
         # docs/stuck_pocket.md: escalating unstick (climb toward the goal, slide one side, then a long jet climb)
         self.unstick_v2 = bool((load_params().get("unstick") or {}).get("v2", False))
         self.upg_ctx = bool((load_params().get("upgrade_ctx") or {}).get("enabled", False))
@@ -252,7 +254,10 @@ class Bot:
         self._enemies = enemies
         if self.aggro_hunted:
             hitters = {i for i, (at, _) in self.attackers.items() if i < 100 and self.t - at < self.aggro_window}
-            self.aggro = len(hitters) <= 1 and len(enemies) <= 1
+            calm = len(hitters) <= 1 and len(enemies) <= 1
+            if not calm:
+                self.aggro_off_t = self.t
+            self.aggro = calm and self.t - self.aggro_off_t >= self.aggro_hold
         target = self._choose_target(enemies, npcs)
         # everyone we know about nearby, including ones that just ducked out of view
         threats = [(kx, ky) for (_, kx, ky) in self.known.values() if math.hypot(kx - x, ky - y) < 220]
@@ -435,7 +440,7 @@ class Bot:
             act.update(loot_take)
 
         botlog.trace(obs["tick"], mode=self.mode, why=why, target=None if target is None else target["id"],
-                     hp=round(me["hp"]), zone=zp.urgency_name if zp else None,
+                     hp=round(me["hp"]), aggro=int(self.aggro), zone=zp.urgency_name if zp else None,
                      drop=f"{dd.drop_id}|{dd.phase}" if dd.goal is not None else dd.reason, ms=round((time.perf_counter() - t0) * 1000, 2))
         mf.draw.label(f"{self.mode} {why} hp {me['hp']:.0f}")
         return act

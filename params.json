@@ -12,10 +12,11 @@
     "start_s": 100
   },
   "aggro": {
-    "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
+    "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding; mode 'hunted' = only while <= 1 mech hit us within window_s and <= 1 in sight, off for off_hold_s after that fails",
     "enabled": true,
     "mode": "hunted",
-    "window_s": 20.0
+    "window_s": 20.0,
+    "off_hold_s": 5.0
   },
   "roam_fix": {
     "_note": "roam to points with free ground nearby; after a failed A* for a goal, walk straight for 3 s before retrying it",
