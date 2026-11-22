@@ -12,6 +12,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | File | Change |
 | --- | --- |
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
+| `mech/brain.go` `squadParams` (practice mode) | Econ: value-based looting (pickups, cubes, crates, NPCs within 260 m) and shoot crates from range when nothing is in sight |
 
 Everything else is unchanged. Any later change goes in this table.
 
