@@ -3,6 +3,9 @@
 Branch `claude/nifty-galileo-lw5l5t`. Details: `docs/trials_nifty_galileo.md` (Python era), `docs/PARTNER_BRIEF.md`
 section 6 (giddy era), README Submissions log (every score).
 
+> **Sun 1 AM: scorer is now builders-4** (96 fresh random seeds; identical code keeps its first score). `d983a4c` rescored
+> 5.75 -> **5.46**: the new baseline. Old 48-seed numbers are not comparable; identical-score tricks no longer work.
+
 ## 1. The facts we measured (real practice submissions)
 
 | What | Result | Meaning |
