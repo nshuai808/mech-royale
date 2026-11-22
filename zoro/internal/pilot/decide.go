@@ -213,6 +213,8 @@ func (p *Pilot) chooseIntent(tn *turn) {
 	case tgt.adv >= tn.st.engage && tgt.d < p.huntRange(tn.st) && tgt.c.Visible && tn.hpFrac > p.T.HuntHP &&
 		(!tn.st.careful || p.laserEdge(tgt.c) || tgt.adv >= p.T.BigEdge):
 		tn.fight = true // a hunt: only with a laser against none, or overwhelming odds
+	case p.vulture(tn):
+		tn.fight = true // umich-ibe, free-for-all only: finish a badly hurt mech that is busy elsewhere
 	case tn.st.duel && tn.hpFrac > 0.5:
 		tn.fight = true
 	}

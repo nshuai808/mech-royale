@@ -34,6 +34,24 @@ func (p *Pilot) stance() stance {
 	return st
 }
 
+// vulture (umich-ibe): in a proven free-for-all, with nobody on us and our health high, take on a visible
+// mech that is close, badly hurt, not facing us and not shooting us. Someone else did that damage; its kill
+// is a place gained and a pile of cubes. Practice sets lob.ffa only after deaths we did not cause (rare, late),
+// so practice play is essentially unchanged; after the cutoff FFAClock sets it from the first tick.
+func (p *Pilot) vulture(tn *turn) bool {
+	t := tn.tgt
+	if !p.lob.ffa || p.T.VultureHP <= 0 || t == nil || t.c == nil || t.c.Drone || !t.c.Visible {
+		return false
+	}
+	c := t.c
+	// Showdown openings are deadly (first deaths at 8-24 s): never start this while anyone is on us or we were
+	// hit in the last 3 s, and only when our damage at this range kills it within VultureSecs.
+	if c.MaxHP <= 0 || c.HP <= 0 || tn.engaged > 0 || tn.hurting || tn.hpFrac < p.T.VultureMe || t.d > p.T.VultureRange {
+		return false
+	}
+	return c.HP < p.T.VultureHP*c.MaxHP && p.nearlyDead(t, p.T.VultureSecs, 0) && p.now-c.HitMeT > 5 && p.now-c.FacedT > 2
+}
+
 // threat is an enemy mech as it matters to this decision.
 type threat struct {
 	c       *Contact

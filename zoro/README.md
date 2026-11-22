@@ -81,3 +81,7 @@ Based on the team's Sulertia V2 branch at 95b025e and Giddy practice entry 86214
 > Re-roll 2 of 9fa225a (6.13): same code, fresh practice seeds.
 
 > Re-roll 3 of 9fa225a (6.13): same code, fresh practice seeds.
+
+> **Vulture (umich-ibe, free-for-all only):** with nobody on us, no damage taken for 3 s and at least 75 % HP, take on a
+> visible mech within 120 m that is under 35 % HP, killable by our damage at that range within 3 s, has not hit us for 5 s
+> and is not facing us (`vulture` in `internal/pilot/threats.go`, `Vulture*` in `tuning.go`).

@@ -66,6 +66,10 @@ type Tuning struct {
 	// umich-ibe: free-for-all only (applied once the lobby is a proven free-for-all, see stance)
 	FFAEngageAdd  float64 // added to Engage: start fewer fights in a free-for-all
 	FFALootRadius float64 // loot radius cap in a free-for-all (0 = LootRadius)
+	VultureHP     float64 // free-for-all: finish a busy mech below this health share (0 = off), see vulture
+	VultureMe     float64 // ... only while our own health share is at least this
+	VultureRange  float64 // ... and it is closer than this (m)
+	VultureSecs   float64 // ... and our damage at that range kills it within this many seconds
 
 	// cover after the first hidden spot
 	DeepMargin float64 // cover must survive the threat side-stepping this far
@@ -164,6 +168,10 @@ func Defaults() Tuning {
 
 		FFAEngageAdd:  0.1,
 		FFALootRadius: 180,
+		VultureHP:     0.35,
+		VultureMe:     0.75,
+		VultureRange:  120,
+		VultureSecs:   3,
 
 		DeepMargin: 8,
 		DeepRange:  80,
