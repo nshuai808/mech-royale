@@ -99,3 +99,21 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sat | `a8c36d0` | 3.42 | `step1-dodge`: `ac6e281` + dodge of gun bullets and mortar shells, beam shooters added to known enemies. 0.18 below `ac6e281`: inside the noise, so no evidence it helps. Sim was neutral/slightly lower too. Not promoted; `main` stays on `ac6e281`. |
 | Sat | `249ca9d` | not submitted | `step4-late`: late-game hold (`late.py`, `params.json` `late`, **off**). From next circle <= 140 m, hold the most concealed spot inside it instead of roam/hold/hunt; skip cubes past 10. Sim `--ffa --ffa-shy 0.6` seed 1: 10.69 on and off, identical (matches end before the late circles). Practice can't show it either; meant only for the combined final candidate. |
 | Sat | `57342d8` | not submitted | `claude/stuck-pocket-7ac14b`: escalating unstick (`params.json` `unstick.v2`, **off**) after the bot got stuck in the Ohio Stadium bowl (nav treats it as sealed; old `_unstick` jets once, then only sidesteps). Write-up: `docs/stuck_pocket.md`. Sim A/B 32 matches: 9.59 off vs 9.78 on (noise; the sim has no jets). Submit alone, not with `late.enabled`. Sim seeds 1014, 7000 (stadium spawns) and 1021 (spawn in a wall) die to the zone whatever the bot does. |
+| Sat | `c6c10d4` | 3.44 | `integ-2`: aggression off, `roam_fix`, `unstick.v2`, `unseen_hit`, `evade_fix`; other new flags off. |
+| Sat 4:48 PM | `8a2aeac` | 3.60 | `t3-weapon-ctx`: integ-2 + `weapon_ctx` only. Noise. |
+| Sat 4:52 PM | `99d6a09` | 3.50 | `t3-upgrade-ctx`: integ-2 + `upgrade_ctx` only. Noise. |
+| Sat 4:54 PM | `65a728e` | 3.42 | `t3-special-guard`: integ-2 + `special_guard` only. Noise. |
+| Sat 4:57 PM | `e139c2d` | 3.48 | `t3-mortar-lead`: integ-2 + `mortar_lead` only. Noise. |
+| Sat 5:00 PM | `585b8e8` | 3.17 | `t2-heal-gate` v1: below 70% HP no new fights, regen. Froze looting. Worse. |
+| Sat 5:23 PM | `a299738` | 3.29 | heal_gate v2 (keeps looting). Worse again: disengaging loses. Dropped. |
+| Sat 6:06 PM | `6bb23c4` | **3.71** | `integ-3` = integ-2 + `evade_unstick` (slide around walls when an escape is blocked; FFA sim +0.91). **New best, current base.** |
+| Sat 6:10 PM | `5a31d43` | 3.58 | integ-3 + `weapon_ctx`. Noise; dropped. |
+| Sat 6:26 PM | `e37bac5` | 2.92 | integ-3 + `laser_flee` (release laser while fleeing). Much worse: retreat-time laser damage matters. |
+| Sat 6:34 PM | `a7b621c` | 3.69 | PROBE: integ-3 that stops shooting mechs after 300 s (score = kills before 300 s). Never ship. |
+| Sat 6:37 PM | `deaaa12` | 2.33 | PROBE: same, after 150 s. => real kills 2.33 by 150 s, 3.69 by 300 s, ~0 after. |
+| Sat 6:47 PM | `1c37af2` | 3.33 | integ-3 + `gun_aim` (hold fire when buildings block the shot). Worse. |
+| Sat 7:12 PM | `5d196e3` | 3.65 | Swing 1 `t11-power`: lt_energy, rush_build, cube_cap, farm_plus, lt_chain. Neutral. |
+| Sat 8:38 PM | `b1ecbf2` | 3.46 | Swing 2 `swing2`: swing 1 + rush fortress (250 s). Calibrated sim +0.42 kills didn't transfer. |
+| Sat | `66e3589` | 3.02 | Swing 3 `t13-hunter`: aggression only while one hunter is on us. Calibrated sim +0.96 kills, real -0.63. Leaving cover loses. |
+| Sat 9:21 PM | `7744704` | 3.17 | Swing 4 `swing4`: integ-3 + finisher (no chase) + damage build. Worse. |
+| Sat | `515bce5` | **5.73** | `giddy-base`: switch to giddygiddyboy's MIT Go bot (`giddy/`, unchanged but the name; see `giddy/README.md`, `docs/leaderboard_study.md`). check.py PASS, replay p99 1.4 ms. **New best; now `main` and the base for improvements.** |
