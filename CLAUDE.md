@@ -54,7 +54,7 @@ The final is a real free-for-all against other teams: there, survival and placem
 ## Workflow
 - `main` is what gets scored. Experiments on branches; merge after `check.py` passes.
 - Before every submission: `check.py` locally, then the docker replay above, and look at p99 answer time (keep it well under 35 ms).
-- Log every submission (commit, score, change) in README's Submissions log. 4 submissions per hour max.
+- Log every submission (commit, score, change) in README's Submissions log. 6 submissions per hour max (team-wide; was 4).
 - Never force-push or delete a submitted commit; the repo must stay public until results are out.
 - Freeze by **Sun 9:00 AM ET**; cutoff **Sun 11:00 AM ET**.
 

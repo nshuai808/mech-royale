@@ -3,7 +3,7 @@
 Our bot for the Builders Buildathon **Mech Royale** track: a 16-mech battle royale on a 3D map of the OSU Oval.
 Score = mean of `16 - place` over 48 practice matches. **Placement beats kills.** Baseline (kit example bot): 1.15.
 
-Submissions close **Sun 11:00 AM ET**. Max 4 submissions per hour per team.
+Submissions close **Sun 11:00 AM ET**. Max 6 submissions per hour per team (was 4 until Sat night).
 
 ## Layout
 

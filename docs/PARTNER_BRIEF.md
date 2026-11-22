@@ -95,7 +95,7 @@ Please leave the E/X/F/N loot/upgrade parameters in `squadParams` alone until th
 
 ## 5. Rules and gotchas
 
-- **4 submissions per hour for the whole team.** Tell Nathanael before you submit, so we don't burn each other's slots.
+- **6 submissions per hour for the whole team** (raised from 4 Sat night). Tell Nathanael before you submit, so we don't burn each other's slots.
   Log every score in README's Submissions log. Freeze **Sun 9:00 AM ET**, cutoff **11:00 AM ET**.
 - Work on branches; `main` changes only when something clearly beats 5.73 (noise is about ±0.25 per submission;
   the scorer is deterministic per commit, so an identical score means no behavior change at all).
