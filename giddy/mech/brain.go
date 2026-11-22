@@ -1935,6 +1935,7 @@ func squadParams(p Params) Params {
 	p.Lethal = true
 	p.Finish = 20
 	p.FightLoot = 40
+	p.Explore = true // umich-ibe: Practice: explore when idle (find crates, drones, weapons)
 
 	return p
 }
