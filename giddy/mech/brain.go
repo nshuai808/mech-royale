@@ -101,6 +101,11 @@ type Brain struct {
 	hitAt                    map[int]float64
 	prevAlive                int
 	uncredited, foreignBeams int
+	zlKey                    [3]float64 // umich-ibe ZoneLock: phase key and locked goal
+	zl                       [2]float64
+	zlOK                     bool
+	lockID                   int // umich-ibe LockS: committed practice target and since when
+	lockAt                   float64
 	stickID                  int
 	stickAt, loseAt          float64
 }
@@ -158,6 +163,8 @@ type Params struct {
 	BeamFFA    int     // umich-ibe: foreign laser beams (whole path > BeamClear m from us) that mean free-for-all
 	BeamClear  float64 // umich-ibe: m
 	CreditS    float64 // umich-ibe: a death of a mech we hit within this many s (now out of view) is ours
+	ZoneLock   bool    // umich-ibe: keep one walkable zone goal per phase instead of re-picking every decision
+	LockS      float64 // umich-ibe: practice, keep a committed target up to this many s (0 = off)
 	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
 	HealFrom   float64 // umich-ibe: HealGate only applies after this match time (s)
 }
@@ -170,6 +177,7 @@ func DefaultParams() Params {
 	p.LaserFirst = true
 	// umich-ibe ModeDetect (Advit/Nathanael's observations): 5 uncredited deaths or 2 foreign laser beams
 	p.ModeDetect, p.UncredFFA, p.BeamFFA, p.BeamClear, p.CreditS = true, 5, 0, 15, 6 // beams off (final-only, #2)
+	p.ZoneLock = true                                                                // umich-ibe: one zone goal per phase
 
 	return p
 }
@@ -446,7 +454,22 @@ func (b *Brain) zoneGoal(z *Zone, x, y float64) (float64, float64) {
 	if d <= r {
 		return x, y
 	}
-	return z.NextCenter[0] + dx/d*r, z.NextCenter[1] + dy/d*r
+	gx, gy := z.NextCenter[0]+dx/d*r, z.NextCenter[1]+dy/d*r
+	if !b.P.ZoneLock {
+		return gx, gy
+	}
+	key := [3]float64{z.NextCenter[0], z.NextCenter[1], z.NextRadius}
+	if b.zlOK && b.zlKey == key && hyp(b.zl[0]-z.NextCenter[0], b.zl[1]-z.NextCenter[1]) <= r {
+		return b.zl[0], b.zl[1]
+	}
+	// one goal per phase, snapped to the nearest walkable cell if that stays inside the safe disc
+	if c := b.W.NearestFree(b.W.Cell(gx, gy)); c >= 0 {
+		if sx, sy := b.W.CellPos(c); hyp(sx-z.NextCenter[0], sy-z.NextCenter[1]) <= r {
+			gx, gy = sx, sy
+		}
+	}
+	b.zlKey, b.zl, b.zlOK = key, [2]float64{gx, gy}, true
+	return gx, gy
 }
 
 func hasWeapon(ws []*WeaponState, kind string) (int, *WeaponState) {
@@ -542,6 +565,16 @@ func (b *Brain) step(o *Obs, act *Action) {
 	if b.P.HPw > 0 {
 		hpw = b.P.HPw
 	}
+	// umich-ibe LockS: keep the committed practice target, unless another foe hitting us is less than half as far
+	lockOn := false
+	if lt := b.tracks[b.lockID]; b.P.LockS > 0 && lt != nil && now-b.lockAt < b.P.LockS && now-lt.Seen < 2.5 {
+		lockOn = true
+		for _, t2 := range b.tracks {
+			if t2 != lt && now-t2.HitMe < 2 && t2.Dist < 0.5*lt.Dist {
+				lockOn = false
+			}
+		}
+	}
 	for _, t := range b.tracks {
 		if now-t.Seen > 2.5 {
 			continue
@@ -610,6 +643,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 		if b.P.Stick > 0 && t.ID == b.stickID && now-b.stickAt < 2 {
 			s -= b.P.Stick
 		}
+		if lockOn && t.ID == b.lockID {
+			s -= 1000
+		}
 		if now-t.HitMe < 4 {
 			s -= 40
 		}
@@ -622,6 +658,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 	}
 	if target != nil {
 		b.stickID, b.stickAt = target.ID, now
+		if target.Kind != "npc" && (target.ID != b.lockID || now-b.lockAt >= b.P.LockS) {
+			b.lockID, b.lockAt = target.ID, now
+		}
 	}
 	foe := target
 	if foe == nil && b.P.Peek {
@@ -2006,6 +2045,7 @@ func squadParams(p Params) Params {
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
+	p.LockS = 60 // umich-ibe: practice, keep a committed target up to 60 s
 	return p
 }
 
