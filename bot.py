@@ -295,12 +295,21 @@ class Bot:
         elif target is not None:
             self.mode, why = "fight", f"#{target['id']}"
             move = self._fight_move(target)
-            lt_held = any(w and w["kind"] == "lightning" for w in me["weapons"])
-            if (lt_held and target["kind"] == "mech" and target["_d"] > 40 and hp_frac > 0.5
-                    and len(exposed) <= 1 and me["energy"] > 35):
-                why += " close in"
-                move = self._go_point(target["pos"][0], target["pos"][1], 30.0)
-                boost = target["_d"] > 60
+            lightning = next((w for w in me["weapons"] if w and w["kind"] == "lightning"), None)
+            if lightning and target["kind"] == "mech" and target["_d"] > 40 and me["energy"] > 35:
+                if not hasattr(self, "lt_close_on"):
+                    self.lt_close_on = bool((load_params().get("lt_close") or {}).get("enabled", False))
+                max_exposed, min_hp, boost_dist = 1, 0.5, 60.0
+                if self.lt_close_on:
+                    min_hp = 0.35
+                    target_hp, target_max_hp = target.get("hp"), target.get("max_hp")
+                    if target_hp is not None and target_max_hp and target_hp < 0.5 * target_max_hp:
+                        max_exposed = 2
+                    boost_dist = lightning.get("stats", {}).get("range", 45.0) + 25.0
+                if hp_frac > min_hp and len(exposed) <= max_exposed:
+                    why += " close in"
+                    move = self._go_point(target["pos"][0], target["pos"][1], 30.0)
+                    boost = target["_d"] > boost_dist
         elif roof_go:
             move, why = self._roof_travel()
         elif self.aggro and self.known and hp_frac > 0.4 and not (late_on and self.lp.p.no_hunt):
@@ -919,6 +928,18 @@ class Bot:
 
     def _pick_upgrade(self, offer):
         ids = [c["id"] for c in offer["choices"]]
+        if not hasattr(self, "dmg_build_on"):
+            self.dmg_build_on = bool((load_params().get("dmg_build") or {}).get("enabled", False))
+        if self.dmg_build_on:
+            damage = {
+                "lightning": ["lightning_efficiency", "lightning_chain", "lightning_range"],
+                "laser": ["laser_damage", "laser_charge"],
+                "gun": ["gun_damage", "gun_rate"],
+            }
+            held = (w["kind"] for w in self.me["weapons"] if w and w["kind"] in damage)
+            primary = max(held, key=WEAPON_RANK.__getitem__, default=None)
+            pref = damage.get(primary, []) + ["plating", "armor", "capacitor", "nanites"] + UPGRADE_PREF
+            return next((ids.index(u) for u in pref if u in ids), 0)
         if self.upg_ctx:
             try:
                 sc = self._upgrade_scores(ids)

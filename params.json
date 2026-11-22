@@ -35,6 +35,12 @@
     "_note": "pick upgrades by the weapon we hold and the weapons seen on enemies (Bot._upgrade_scores); off = fixed UPGRADE_PREF",
     "enabled": false
   },
+  "dmg_build": {
+    "enabled": true
+  },
+  "lt_close": {
+    "enabled": true
+  },
   "weapon_ctx": {
     "_note": "weapon rank shifted by the weapon triangle vs weapons seen on enemies (Bot._ranks); off = fixed WEAPON_RANK",
     "enabled": false,

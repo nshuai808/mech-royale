@@ -12,6 +12,7 @@ HELLO["map"]["dir"] = os.path.join(HERE, "kit", "arena")
 def make(ctx=True):
     b = B.Bot.__new__(B.Bot)          # skip the map build: the pick only needs me + foe memory
     b.upg_ctx, b.foe_kit = ctx, {}
+    b.dmg_build_on = False
     return b
 
 
