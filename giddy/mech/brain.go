@@ -149,6 +149,12 @@ type Params struct {
 	FinishHP   float64
 	FinishRush bool
 	Pursue     float64
+	// umich-ibe: ZoneEarly > 0: when no threat for 4 s, move toward the next circle once it is due within
+	// ZoneEarly seconds (giddy: 14), so zone runs happen before the multi-hunter phase, not during it.
+	ZoneEarly float64
+	// umich-ibe: NoCrowdLose: the lose rule ignores how many mechs are near (giddy: 2+ near under 55% HP or
+	// 3+ near under 80% HP = retreat); only "we are low and our target is healthier" triggers a retreat.
+	NoCrowdLose bool
 }
 
 func DefaultParams() Params {
@@ -636,6 +642,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 			}
 		}
 		losing := (near >= 2 && hpFrac < 0.55) || (near >= 3 && hpFrac < 0.8)
+		if b.P.NoCrowdLose {
+			losing = false
+		}
 		if target != nil {
 			tf := target.HP / math.Max(1, target.MaxHP)
 			if hpFrac < 0.35 && tf > hpFrac+0.1 {
@@ -675,6 +684,9 @@ func (b *Brain) step(o *Obs, act *Action) {
 	deadline := b.zoneDeadline(z, x, y, 8)
 	zoneMust := !me.InZone || now+tNeed+3 >= deadline
 	zoneShould := now+tNeed+14 >= deadline
+	if b.P.ZoneEarly > 0 && now-b.lastThreatAt > 4 && now+tNeed+b.P.ZoneEarly >= deadline {
+		zoneShould = true
+	}
 
 	escJump := false
 	switch {
