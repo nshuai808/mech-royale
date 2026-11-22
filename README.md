@@ -137,3 +137,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `d5dffcc` | 5.67 | robust + practice `EngageDist = 90`. Neutral; the sim's +0.33 didn't transfer. |
 | Sun | `96a804f` | 5.67 | robust + practice `AllFoes = true`. Neutral: the sim's +0.40 (two seed pairs) didn't transfer, like EngageDist 90. The house-bot sim can't pick giddy combat flags. |
 | Sun | `79eb097` | 5.42 | robust + `BodyLoot` (practice: walk to each kill's body when clear, for its cubes + 2). -0.31: worse. Fifth cube-gathering change to lose; cubes are not the practice lever (the exposure costs more). |
+| Sun | `c5fdfc3` | 5.69 | robust + `LaserHold` (practice: keep a laser charge through a <= 1 s loss of the target instead of firing into the idle aim; confirmed bug, `tools/laser_hold_check.py`). Neutral. |

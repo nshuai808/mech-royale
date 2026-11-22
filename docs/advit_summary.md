@@ -24,6 +24,7 @@ Any change that does alter behavior reshuffles every fight: noise is then about 
 | `d983a4c` | upgrade order laser_damage, laser_charge before plating, armor (on `robust`) | 5.75 (neutral) |
 | `d5dffcc` | `EngageDist = 90` | 5.67 (neutral) |
 | `6a7c88e` | `NoMortar = false` | 5.52 |
+| `c5fdfc3` | `LaserHold`: hold the laser charge through a brief loss of the target (real bug fix) | 5.69 |
 | `79eb097` | `BodyLoot`: walk to each kill's body when clear (its cubes + 2) | 5.42 |
 | `96a804f` | `AllFoes = true` (sim +0.40) | 5.67 |
 | `b35b174` | `UseDrops` + `NanoUp` + `Explore` + `CubeGoal 15` | 5.40 |
