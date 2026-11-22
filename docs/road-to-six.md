@@ -98,3 +98,15 @@ cubes within 40 m mid-fight, loot within 150 m, NPC farming above 50 % HP). One 
 | 4 | `089ffe9` | `LootRadius = 100` (was 150) |
 | 5 | `8621477` | practice switch at 5 s (practice only; not for the final entry) |
 | later | combinations | any two that beat 5.75, plus `1c47fc9` Opening (5.69) |
+
+## Three independent builds from the 5.84 control
+
+The practice target of 6.10 requires about 25 extra placement points per 96-match batch over `8621477`. Earlier tracking (5.33), unconditional post-kill repositioning (5.48), and breaking sight on predicted losing trades (5.40) all scored below their 5.75 control. These candidates change first contact or damage delivery while keeping the 5.84 build's practice switch and HealGate. Submit independently in the suggested order. All scores are pending.
+
+| Order | Candidate commit | Change and main uncertainty |
+| --- | --- | --- |
+| 1 | [Sound acquisition](https://github.com/nshuai808/mech-royale/commit/ed07546760653635910dc79787dddc00c34e8eae) | Turn the vision cone toward recent close weapon or movement sounds while searching. A nearby weapon can interrupt farming aim. This can win a first shot across loadouts, but an anonymous sound can point away from the next hunter. |
+| 2 | [Gun and laser timing](https://github.com/nshuai808/mech-royale/commit/84780e619cebd577f838b1147b16178ae114a756) | Give the gun more aiming time during a laser charge when the torso can still align for release. Release a usable partial charge when the target is projected to cross behind cover. Value depends on how often both weapons can contribute or a firing window closes. |
+| 3 | [Lightning matchup](https://github.com/nshuai808/mech-royale/commit/71096ec453ee210fd80a50cb9a8d9f9613378bc0) | Close on an isolated laser carrier when healthy, sufficiently energized, and within a short approach of lightning range. A laser carrier facing lightning instead prefers a range buffer. This exploits charge interruption, but only applies to specific loadouts. |
+
+All three passed Go unit tests, compiled for Linux amd64, and answered 300/300 protocol observations within 50 ms locally. Contact and lightning used native Windows binaries. Volley used Go WebAssembly on Node because Windows Application Control blocked its native executable. These checks establish protocol behavior. Match strength and FFA placement are unmeasured.
