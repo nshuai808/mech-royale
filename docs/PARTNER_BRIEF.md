@@ -138,6 +138,15 @@ top is in the 150-300 s multi-hunter phase.
 1v1s against the stronger hunters (the squad sends weakest first). Retreat/recover thresholds are inert in practice
 (sim: identical). So the +1 is duel strength at 150-300 s: cubes/upgrades/weapon by then, or duel execution.
 
+**Spectator-feed recorder** (branch `claude/nifty-galileo-lw5l5t`): `python3 tools/feed_record.py` saves every match on
+`wss://watch.joinbuilders.org/live` (showdowns = the final's format) to `replays/feed/`, one gzip per match;
+`python3 tools/feed_analyze.py replays/feed/*.jsonl.gz` prints a per-bot table (points, kills, cubes over time, max HP,
+first weapon, early deaths, roof/air time), points by loadout and correlations. Must run on a laptop: the cloud session's
+proxy can't do WebSockets. The feed format has per-mech result summaries (place, kills, damage by weapon, cubes_max,
+upgrades, loadout, death time, killer weapon, rear hits, drops). Demo replay on the site
+(`/replays/mechanics-v2-16.jsonl.gz`) is a house-bot match: types expert/hard/medium/brawler/sniper/thirdparty/farmer;
+they spend 14-28 % of the time on roofs and 21-37 % in the air (house bots climb: why roof camping lost).
+
 **Clone arena exists** (lane 1, branch `claude/nifty-galileo-lw5l5t`, `tools/sim.py`): `--clones N --clone-cmd <binary>` makes N
 opponents real bot processes (own hello/slot, same observations and budget, coast on late answers); add `--ffa` so the rest
 fight everyone. ~6 s per match with 16 giddy processes. Calibration: giddy vs 15 giddy clones = 5.96 +- 0.97 pts over 24
