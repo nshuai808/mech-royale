@@ -70,3 +70,54 @@ how giddy tells practice from FFA (`observe()`: `otherDead`, `notPractice`, `squ
 - Windows Application Control on Nathanael's PC sometimes blocks a freshly built `.exe`; that's the machine, not the bot.
 - Don't copy from repos that opted out of AI use (one top repo has an `AGENTS.md` asking that). giddy is MIT; keep its
   `LICENSE` and credit.
+
+## 6. From Advit's session (Sun 2026-11-22, early AM ET)
+
+Branch: `claude/nifty-galileo-lw5l5t` (its tree now equals `main` + the commits below; the old Python trials are in
+its history and in `docs/trials_nifty_galileo.md`).
+
+### 6.1 Already explored on giddy (don't repeat)
+
+| Commit | Change (practice `squadParams`) | Real | Sim (48 matches, seeds 3/4/9/10 x 12) |
+| --- | --- | --- | --- |
+| `515bce5` | unchanged giddy (control) | 5.73 | 2.31, 1.19 kills, life 152 s |
+| `7e4deb8` | `UseDrops = true` | not submitted alone | **2.02**, 1.38 kills, life 136 s; captured a drop in 2/48 |
+| `6b134b2` tree | + `Explore = true` (sim run was Explore alone on main) | not submitted alone | **1.48**, 1.23 kills, life **93 s** |
+| `b35b174` | `UseDrops` + `NanoUp` + `Explore` + `CubeGoal 15` (stacked) | **5.40** | - |
+
+- `CubeGoal 15` was a no-op (your v-cubes21/45 result), so the 5.40 comes from drops, nano and explore.
+- **Explore looks harmful**: in the sim the bot lives a third less (wandering into hunters). It is X in your swing:
+  expect `s-no-explore` to beat `s-all`. Same lesson as the Python bot: moves that add exposure lose.
+- **Drops look mildly harmful** in practice (sim -0.3, near noise). The Python bot's drop gain was small (+0.1) and your
+  t12 report found 0 practice captures. Low priority unless cube income is shown to need it.
+- `e9bd9ef` (NanoUp alone on main) exists but is **superseded by your swing; we won't submit it**.
+
+### 6.2 Ready, waiting for a slot (measurement only, never ship)
+
+| Commit | What | Tells us |
+| --- | --- | --- |
+| `27392a91bc94f9c13f4521f8fa7446d6ae9b7d2d` | PROBE: unchanged giddy, no shots after 300 s | kills before the all-squad rush |
+| `5001814dd38e18f24d5dbe9f13cb327ffb5b4d6c` | PROBE: unchanged giddy, no shots after 150 s | kills in the early phase |
+
+Same method as the Python probes (3.71 bot: 2.33 by 150 s, 3.69 by 300 s, ~0 after). We need about +1 to reach the top 32;
+the probes say whether that point is in the early game, mid game, or surviving the rush. Will ask before using slots.
+
+### 6.3 Lane ideas (our take; we're taking lane 1 unless you object)
+
+1. **Clone arena** (taking it). Add an opponent mode to `tools/sim.py` that runs N copies of the giddy binary as the other
+   mechs (each its own subprocess, same protocol), plus a mix mode (giddy copies + scripted house bots). Use it to:
+   compare final candidates head to head, check FFA detection (`notPractice` should flip within the first deaths), count
+   zone deaths / stuck matches, and measure placement, not kills. Limits: still gun-only physics (no lasers, loot,
+   upgrades, jets), so it ranks FFA positioning and fighting, not loadouts.
+2. **Supply drops**: our data says skip in practice (above). Possibly worth it in the final (FFA: fewer hunters, drops
+   give 3 cubes + full heal); test only in the clone arena, behind the FFA parameter set, never in `squadParams`.
+3. **Weapon choice**: idea worth one submission each later: `NoMortar = false` (lets giddy pick up mortars: splash hits
+   clustered hunters), and lightning vs laser rank in practice. giddy's laser-first is what the 6.2+ copies keep, so
+   expect small effects; the Python bot gained most when it got *any* special early (3.02 -> 3.40).
+4. **Late game in FFA**: depends on the clone arena (needs bots that hide like giddy). In practice the endgame is worth
+   nothing (pacifist probe 0.08: practice points are only kills).
+5. **Stadium bowl**: quick check once the clone arena exists (spawn seeds 1014, 7000 put a bot in the bowl).
+6. **New: cube income** (your v-cubes finding). The bot never reaches 10 cubes, top bots have 22-27. Where cubes come
+   from: NPC drones (12 x 2), crates (36 x 1), kills (+2 each), drops (3 x 3). A probe that logs nothing can't count them,
+   so the cheapest real test is one factor at a time on income only (your E and F flags). If E/F don't move the score,
+   cube income isn't what holds giddy at 5.7 and the +1 must come from fights (probes above).
