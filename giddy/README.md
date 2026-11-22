@@ -12,11 +12,10 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | File | Change |
 | --- | --- |
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
-| `mech/brain.go` `observe` | `kill` events for known NPCs no longer count as mech kills (they would hide other mechs' deaths from the FFA detector) |
-| `mech/brain.go` `Act`, `cmd/bot/main.go` | With `MECH_DEBUG=1`, recovered panics are printed to stderr with a stack (local tools only; off in matches) |
-| `mech/brain.go` | new `HealGate`/`HealFrom` (practice only, 0.6 from 150 s): in the mid game, below 60 % HP don't start a fight with a foe that isn't shooting us, isn't within 45 m, isn't below 30 % HP and isn't our current target |
+| `mech/duel.go`, `mech/brain.go` | Practice duels after 150 s compare firing from the current range with closing to lightning range and use nearby cover during weapon downtime. |
 | `mech/brain.go` `upgradeOrderLaser` | practice only: laser_damage, laser_charge before plating, armor |
-| `mech/brain.go` `squadParams` | tuning: heal gate below 70 % HP (was 60 %) |
+| `mech/brain.go` | `HealGate`/`HealFrom` (practice only, 0.6 from 150 s): below 60 % HP don't start a fight with a foe that isn't shooting us, isn't within 45 m, isn't below 30 % HP and isn't our current target (road-to-six #3) |
+| `mech/brain.go` `observe` | robust's FFA-detector fix: an NPC kill doesn't count as a mech kill (no practice effect) |
 
 Everything else is unchanged. Any later change goes in this table.
 

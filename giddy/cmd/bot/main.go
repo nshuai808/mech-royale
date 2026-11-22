@@ -9,9 +9,6 @@ import (
 	"mechbot/mech"
 )
 
-// MECH_DEBUG=1 prints recovered panics to stderr (matches show no stderr; local tools only).
-var debugOn = os.Getenv("MECH_DEBUG") != ""
-
 func main() {
 	lines := make(chan []byte, 256)
 	go func() {
@@ -100,10 +97,6 @@ func main() {
 			send(mech.Action{Tick: t.Tick})
 			continue
 		}
-		before := brain.Panics
 		send(brain.Act(&o))
-		if debugOn && brain.Panics > before {
-			fmt.Fprintf(os.Stderr, "PANIC tick %d: %s\n", o.Tick, brain.LastPanic)
-		}
 	}
 }

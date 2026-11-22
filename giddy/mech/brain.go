@@ -1,10 +1,8 @@
 package mech
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
-	"runtime/debug"
 	"sort"
 )
 
@@ -46,6 +44,9 @@ type Brain struct {
 
 	now float64
 
+	duelID   int
+	duelSeen float64
+
 	path     []int32
 	pathGoal [2]float64
 	pathAt   float64
@@ -83,7 +84,6 @@ type Brain struct {
 	laserHeld    float64
 	Mode         string
 	Panics       int
-	LastPanic    string // panic value and stack of the last recovered panic (for local tools)
 
 	escLaunch, escLand [2]float64
 	escAt              float64
@@ -195,7 +195,6 @@ func (b *Brain) Act(o *Obs) (act Action) {
 	defer func() {
 		if r := recover(); r != nil {
 			b.Panics++
-			b.LastPanic = fmt.Sprintf("%v\n%s", r, debug.Stack())
 			a := b.lastAim
 			act = Action{Tick: o.Tick, Aim: &a}
 		}
@@ -316,7 +315,7 @@ func (b *Brain) observe(o *Obs) {
 			}
 		case "kill":
 			// Only mech kills explain a drop in alive (NPCs are not counted there). An NPC kill counted
-			// here would hide other mechs' deaths from the free-for-all detector below.
+			// here would hide other mechs' deaths from the free-for-all detector below. (from robust)
 			if _, npc := b.npcs[e.Target]; !npc {
 				b.kills++
 			}
@@ -606,6 +605,11 @@ func (b *Brain) step(o *Obs, act *Action) {
 	if foe == nil && b.P.Pursue > 0 && hidden != nil && hidden.HP < b.P.Pursue*hidden.MaxHP {
 		foe = hidden
 	}
+	// Keep the same opponent briefly while moving behind nearby cover.
+	duelPhase := b.pracOn && now >= 150
+	if duelPhase && foe == nil && b.duelSeen > 0 && now-b.duelSeen < 1 {
+		foe = b.tracks[b.duelID]
+	}
 	danger := false
 	crowd := 0
 	for _, t := range seen {
@@ -675,6 +679,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 	var mx, my float64
 	boost := false
 	mode := "idle"
+	var coveredDuel *Track
 	var farm *Track
 	var farmPos *Vec3
 
@@ -756,7 +761,19 @@ func (b *Brain) step(o *Obs, act *Action) {
 		if b.P.FinishHP > 0 {
 			finHP = b.P.FinishHP
 		}
-		if keep := b.P; b.P.Finish > 0 && foe.HP < finHP*foe.MaxHP && hpFrac > 0.42 && crowd <= 2 {
+		duel := duelPhase && foe.Kind != "npc" && ((target != nil && crowd == 1) ||
+			(target == nil && foe.ID == b.duelID && crowd == 0 && now-b.duelSeen < 1))
+		if duel {
+			if target != nil {
+				b.duelID, b.duelSeen = foe.ID, now
+			}
+			r, los := b.duelPosition(me, foe)
+			if target == nil {
+				coveredDuel = foe
+			}
+			wantLos = los
+			mx, my = b.fightMoveAt(o, foe, seen, los, r)
+		} else if keep := b.P; b.P.Finish > 0 && foe.HP < finHP*foe.MaxHP && hpFrac > 0.42 && crowd <= 2 {
 			b.P.GunRange, b.P.LaserRange, b.P.LightRange = b.P.Finish, b.P.Finish, b.P.Finish
 			mx, my = b.fightMove(o, foe, seen, wantLos)
 			b.P = keep
@@ -766,11 +783,11 @@ func (b *Brain) step(o *Obs, act *Action) {
 		} else {
 			mx, my = b.fightMove(o, foe, seen, wantLos)
 		}
-		if light != nil && foe.Dist > 50 && me.Energy > 55 && wantLos > 0 {
+		if !duel && light != nil && foe.Dist > 50 && me.Energy > 55 && wantLos > 0 {
 			boost = true
 		}
 		mode = "fight"
-		if b.P.FightLoot > 0 {
+		if !duel && b.P.FightLoot > 0 {
 			r := b.P.FightLoot
 			if hpFrac <= 0.5 {
 				r *= 0.57
@@ -1048,6 +1065,12 @@ func (b *Brain) step(o *Obs, act *Action) {
 		}
 	}
 
+	// Continue an existing laser charge across a brief break in line of sight.
+	// Reacquiring the target restores normal aimed release.
+	if coveredDuel != nil && laser != nil && laser.Charge > 0 {
+		slot, _ := hasWeapon(me.Weapons, "laser")
+		act.Fire[slot] = true
+	}
 	if !haveAim {
 
 		var watch *Track
@@ -1360,9 +1383,12 @@ func (b *Brain) prefRange(me *Self, t *Track) float64 {
 }
 
 func (b *Brain) fightMove(o *Obs, tg *Track, seen []*Track, wantLos float64) (float64, float64) {
+	return b.fightMoveAt(o, tg, seen, wantLos, b.prefRange(&o.Self, tg))
+}
+
+func (b *Brain) fightMoveAt(o *Obs, tg *Track, seen []*Track, wantLos, rp float64) (float64, float64) {
 	me := &o.Self
 	x, y := me.Pos[0], me.Pos[1]
-	rp := b.prefRange(me, tg)
 	bx, by := tg.Pos[0]-x, tg.Pos[1]-y
 	bd := hyp(bx, by) + 1e-9
 	ux, uy := bx/bd, by/bd
@@ -1953,7 +1979,7 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.HealGate = 0.7 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
+	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
 	return p
 }
