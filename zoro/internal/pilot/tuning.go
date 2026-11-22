@@ -134,7 +134,7 @@ func Defaults() Tuning {
 		StrafeMin:     0.35,
 		StrafeMax:     1.1,
 
-		OpeningSecs:      4, // umich-ibe: assume the practice squad after 4 s (was 5)
+		OpeningSecs:      6, // umich-ibe: assume the practice squad after 6 s (was 5; 4 s scored 5.91)
 		SquadEngage:      0.9,
 		SquadHunt:        80,
 		SquadHuntLaser:   100,
