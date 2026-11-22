@@ -450,7 +450,7 @@ var upgradeOrder = []string{
 
 // umich-ibe: practice (LaserUp) order puts laser damage first.
 var upgradeOrderLaser = []string{
-	"laser_charge", "laser_damage", "plating", "armor", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
+	"laser_damage", "laser_charge", "plating", "armor", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
 	"servos", "gun_mag", "gun_velocity", "gyros", "lightning_chain", "reactor", "capacitor",
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
@@ -1977,7 +1977,7 @@ func squadParams(p Params) Params {
 	p.LaserUp = true
 	p.Lethal = true
 	p.Finish = 20
-	p.FightLoot = 40
+	p.FightLoot = 0 // umich-ibe: no cube walks mid-fight (was 40 m)
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
