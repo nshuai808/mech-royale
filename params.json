@@ -5,12 +5,12 @@
   },
   "drops": {
     "enabled": true,
-    "self_threat_radius_m": 0,
-    "threat_cost": 0.15,
-    "contested_cost": 0.25,
-    "min_utility": 0.2,
-    "max_dist_m": 350,
-    "late_s": 40
+    "self_threat_radius_m": 60,
+    "threat_cost": 0.3,
+    "contested_cost": 0.45,
+    "min_utility": 0.3,
+    "max_dist_m": 300,
+    "late_s": 30
   },
   "roof": {
     "_note": "roof.py: from start_s, climb a roof inside the next circle and hold it (stand back from the edges)",
@@ -22,7 +22,10 @@
     "enabled": true
   },
   "ultra": {
-    "_note": "never flee; fight > drop > loot (cubes 200 m, guns, jet to roof loot) > hunt; boost-run; hop in fights",
-    "enabled": true
+    "_note": "medium: loot-first, cubes 200 m, crates all match, jet to roof loot, boost travel; flee < flee_hp vs 2+ (or < 0.625*flee_hp while hit); heal to hunt_hp before hunting; no hops",
+    "enabled": true,
+    "flee_hp": 0.4,
+    "hunt_hp": 0.9,
+    "hop": false
   }
 }

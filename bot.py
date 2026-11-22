@@ -97,7 +97,11 @@ class Bot:
         self.roam, self.roam_t = None, -1.0
         # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
         self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
-        self.ultra = bool((load_params().get("ultra") or {}).get("enabled", False))
+        up = load_params().get("ultra") or {}
+        self.ultra = bool(up.get("enabled", False))
+        self.flee_hp = float(up.get("flee_hp", 0.0))          # medium: flee below this with 2+ enemies exposed
+        self.hunt_hp = float(up.get("hunt_hp", 0.4))          # medium: heal to this before hunting
+        self.hop = bool(up.get("hop", True))
         self.zmax = 45.0 if self.ultra else 3.5    # ultra: jet up to loot on roofs
         self.hop_t, self.jet_goal_z = -9.0, 0.0
         rp = load_params().get("roof") or {}
@@ -201,6 +205,11 @@ class Bot:
             # inside a ring we hold: 4 s alone = 3 cubes + full HP. Stay (and keep shooting) unless it stalls.
             self.mode, why = "drop", dd.reason
             move = dd.move if dd.move and (dd.move[0] or dd.move[1]) else None
+        elif self.ultra and threats and ((hp_frac < self.flee_hp and len(exposed) >= 2)
+                                         or (hp_frac < self.flee_hp * 0.625 and recently_hurt)):
+            self.mode = "evade"                     # medium: still break off a fight we are clearly losing
+            move, why = self._evade(threats)
+            boost = me["energy"] > 25
         elif self.ultra:
             move, boost, why = self._ultra(obs, target, need_zone, hp_frac)
         elif threats and ((not self.aggro and (self._third_party(target, enemies, exposed)
@@ -281,7 +290,7 @@ class Bot:
             mv, jump, boost2 = self._unstick(mv, move is not None)
         if move is not None and self.mode in ("move", "loot", "heal", "drop") and not boost and not boost2:
             pass  # walking at full speed: faster than sneaking, and the squad hunts us anyway
-        if self.ultra and self.mode == "fight" and me["energy"] > 55 and self.t - self.hop_t > 1.8:
+        if self.ultra and self.hop and self.mode == "fight" and me["energy"] > 55 and self.t - self.hop_t > 1.8:
             jump, self.hop_t = True, self.t          # hop: harder to hit, and over low cover
         if self.ultra and self.mode == "fight" and not me["grounded"] and self.t - self.hop_t < 0.6 and me["energy"] > 30:
             boost2 = True                            # short jet burst at the top of the hop
@@ -426,7 +435,7 @@ class Bot:
                 return norm(gx - x, gy - y), False, label + " jet"
             self.mode = "loot"
             return self._go_point(gx, gy, 1.5 if gz - self.z <= 2.5 else 6.0), fast and d > 30, label
-        if self.known:
+        if self.known and hp_frac >= self.hunt_hp:
             kid, (kt, kx, ky) = min(self.known.items(), key=lambda kv: math.hypot(kv[1][1] - x, kv[1][2] - y))
             self.mode = "hunt"
             return self._go_point(kx, ky, 20.0), fast and math.hypot(kx - x, ky - y) > 40, f"#{kid}"
