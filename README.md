@@ -156,3 +156,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `f62bdcd` | 5.55 (builders-4) | 768b8a3 with duel-phase logic from 60 s (was 150 s). -0.20: duel logic stays at 150 s. |
 | Sun | `cf0611d` | 5.45 (builders-4) | 768b8a3 with HealGate below 50 % (was 60 %). -0.30: 60 % stays (50 % 5.45, 70 % 5.30). |
 | Sun | `2a8fa35` | 5.49 (builders-4) | 768b8a3 + ReloadAfterKill 10 s. -0.26. Every 768b8a3 variant lands 5.40-5.55: 768b8a3's true level is likely ~5.5-5.6 (its 5.75 partly a lucky draw). |
+| Sun | `62cf6af` | 5.39 (builders-4) | 768b8a3 with upgrade order laser_damage, laser_charge, nanites, plating, armor. -0.36: order stays. |
