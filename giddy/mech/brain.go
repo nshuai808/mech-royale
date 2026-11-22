@@ -185,8 +185,6 @@ func angDiff(a, b float64) float64 {
 
 func clamp(v, lo, hi float64) float64 { return math.Max(lo, math.Min(hi, v)) }
 
-const probeStopAt = 150.0
-
 func (b *Brain) Act(o *Obs) (act Action) {
 	act.Tick = o.Tick
 	defer func() {
@@ -197,9 +195,6 @@ func (b *Brain) Act(o *Obs) (act Action) {
 		}
 	}()
 	b.step(o, &act)
-	if o.T > probeStopAt { // PROBE: no shots after probeStopAt, so the practice score = kills before it. Never ship.
-		act.Fire = [2]bool{}
-	}
 	if act.Aim != nil {
 		a := act.Aim
 		if math.IsNaN(a[0]) || math.IsInf(a[0], 0) || math.IsNaN(a[1]) || math.IsInf(a[1], 0) {
@@ -1940,6 +1935,7 @@ func squadParams(p Params) Params {
 	p.Lethal = true
 	p.Finish = 20
 	p.FightLoot = 40
+	p.NanoUp = true // umich-ibe: Practice: upgrade order plating, armor, nanites, laser (faster heal between hunters)
 
 	return p
 }

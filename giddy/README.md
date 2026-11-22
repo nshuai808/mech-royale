@@ -12,7 +12,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | File | Change |
 | --- | --- |
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
-| `mech/brain.go` `Act` | **PROBE**: no shots after 150 s (score = kills before 150 s). Never ship. |
+| `mech/brain.go` `squadParams` | `p.NanoUp = true`: Practice: upgrade order plating, armor, nanites, laser (faster heal between hunters) |
 
 Everything else is unchanged. Any later change goes in this table.
 
