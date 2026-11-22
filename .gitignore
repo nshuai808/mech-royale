@@ -9,3 +9,5 @@ Thumbs.db
 # local match logs / replays (repo must stay under 20 MB)
 replays/
 *.log
+giddy/mechbot
+giddy/mechbot.exe
