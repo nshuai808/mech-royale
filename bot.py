@@ -97,6 +97,9 @@ class Bot:
         self.roam, self.roam_t = None, -1.0
         # rooftop camping (roof.py): from roof.start_s, hold a climbable roof inside the circle, out of ground sight
         self.aggro = bool((load_params().get("aggro") or {}).get("enabled", False))
+        # experiment: never shoot mechs, hide from every threat, farm, park at the final centre.
+        # Its score = the points we get without kills (house bots dying to the zone / end-of-match HP order).
+        self.pacifist = bool((load_params().get("pacifist") or {}).get("enabled", False))
         up = load_params().get("ultra") or {}
         self.ultra = bool(up.get("enabled", False))
         self.flee_hp = float(up.get("flee_hp", 0.0))          # medium: flee below this with 2+ enemies exposed
@@ -234,7 +237,7 @@ class Bot:
             kid, (kt, kx, ky) = min(self.known.items(), key=lambda kv: math.hypot(kv[1][1] - x, kv[1][2] - y))
             self.mode, why = "hunt", f"#{kid}"
             move = self._go_point(kx, ky, 20.0)
-        elif any(e["_d"] < 150 for e in exposed) or (threats and self.t - self.last_hurt_t < 6):
+        elif any(e["_d"] < 150 for e in exposed) or (threats and self.t - self.last_hurt_t < 6) or (self.pacifist and threats):
             self.mode = "hide"
             move, why = self._evade(threats)
         else:
@@ -382,7 +385,7 @@ class Bot:
         now = self.t
         laser = any(w and w["kind"] == "laser" for w in self.me["weapons"])
         far = 250 if laser else 130          # laser: hitscan 315 dmg to 280 m, snipe the hunter on its way in
-        for e in enemies:
+        for e in ([] if self.pacifist else enemies):
             hit = self.attackers.get(e["id"])
             shooting_us = hit and now - hit[0] < 4
             if e["_d"] > max(230, far) or (e["_d"] > far and not shooting_us and not self.aggro):

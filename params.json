@@ -5,7 +5,7 @@
   },
   "drops": {
     "enabled": true,
-    "self_threat_radius_m": 60,
+    "self_threat_radius_m": 120,
     "threat_cost": 0.3,
     "contested_cost": 0.45,
     "min_utility": 0.3,
@@ -19,13 +19,17 @@
   },
   "aggro": {
     "_note": "all-out aggression: fight anything within 230 m, flee only < 25% HP vs 2+, hunt the last known enemy instead of hiding",
-    "enabled": true
+    "enabled": false
   },
   "ultra": {
     "_note": "medium: loot-first, cubes 200 m, crates all match, jet to roof loot, boost travel; flee < flee_hp vs 2+ (or < 0.625*flee_hp while hit); heal to hunt_hp before hunting; no hops",
-    "enabled": true,
+    "enabled": false,
     "flee_hp": 0.4,
     "hunt_hp": 0.9,
     "hop": false
+  },
+  "pacifist": {
+    "_note": "EXPERIMENT: never shoot mechs, hide from all threats, farm, final centre. Measures points without kills.",
+    "enabled": true
   }
 }
