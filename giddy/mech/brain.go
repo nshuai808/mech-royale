@@ -47,8 +47,6 @@ type Brain struct {
 	duelID   int
 	duelSeen float64
 
-	killAt float64 // umich-ibe ReloadAfterKill: time of our last mech kill
-
 	path     []int32
 	pathGoal [2]float64
 	pathAt   float64
@@ -153,7 +151,6 @@ type Params struct {
 	Pursue     float64
 	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
 	HealFrom   float64 // umich-ibe: HealGate only applies after this match time (s)
-	ReloadKill float64 // umich-ibe: this long after a kill with no target, reload any partly empty magazine (s; 0 = off)
 }
 
 func DefaultParams() Params {
@@ -321,7 +318,6 @@ func (b *Brain) observe(o *Obs) {
 			// here would hide other mechs' deaths from the free-for-all detector below. (from robust)
 			if _, npc := b.npcs[e.Target]; !npc {
 				b.kills++
-				b.killAt = b.now
 			}
 			delete(b.tracks, e.Target)
 		}
@@ -1103,8 +1099,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 	act.Aim = &aim
 
 	if gun != nil && gun.Reload <= 0 && gun.Ammo < gun.Stats.Mag {
-		afterKill := b.P.ReloadKill > 0 && b.killAt > 0 && now-b.killAt < b.P.ReloadKill
-		if target == nil && farm == nil && farmPos == nil && (gun.Ammo <= gun.Stats.Mag*0.6 || now-b.lastThreatAt > 3 || afterKill) {
+		if target == nil && farm == nil && farmPos == nil && (gun.Ammo <= gun.Stats.Mag*0.6 || now-b.lastThreatAt > 3) {
 			act.Reload = true
 		}
 	}
@@ -1984,9 +1979,8 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.HealGate = 0.5 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
+	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
-	p.ReloadKill = 10 // umich-ibe: practice only, top up the magazine right after a kill
 	return p
 }
 
