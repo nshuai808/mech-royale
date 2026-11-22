@@ -97,3 +97,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `da3afa0` | 3.46 | ultra: never flee, loot-first, hops/jets, bold drops. |
 | Sun | `df31a39` | 3.63 | medium: aggro + ultra farming, flee < 40% vs 2+, heal before hunting, no hops. (Teammate's best: 3.71.) |
 | Sun | `8ffc0c2` | 0.08 | EXPERIMENT pacifist (never shoots mechs, hides, farms). Proves points = our kills only; hiding never saves us. |
+| Sun | `23c2aa1` | 3.42 | medium + armor-first upgrades + third-party cover in fights (assumed to be the 'medium 3.42'). |

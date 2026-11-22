@@ -32,8 +32,8 @@ import zone
 from nav import AStar, Map
 
 TAU = 2 * math.pi
-UPGRADE_PREF = ["armor", "plating", "nanites", "laser_damage", "laser_charge", "lightning_efficiency",
-                "gun_damage", "gun_rate", "servos", "sensors", "gyros", "jets", "capacitor", "reactor",
+UPGRADE_PREF = ["plating", "armor", "nanites", "gun_rate", "gun_damage", "lightning_efficiency", "laser_damage",
+                "laser_charge", "servos", "sensors", "gyros", "jets", "capacitor", "reactor",
                 "gun_mag", "gun_velocity", "lightning_range", "mortar_reload", "lightning_chain",
                 "mortar_velocity", "mortar_splash", "laser_pierce"]
 WEAPON_RANK = {"lightning": 3, "laser": 2, "mortar": 1, "gun": 0}   # lightning: 240 dps, can't miss inside 45 m
@@ -107,6 +107,9 @@ class Bot:
         self.hop = bool(up.get("hop", True))
         self.zmax = 45.0 if self.ultra else 3.5    # ultra: jet up to loot on roofs
         self.hop_t, self.jet_goal_z = -9.0, 0.0
+        self.drop_gun = bool(up.get("drop_gun", False))
+        self.body = None                 # (x, y, t) where our last kill died: its cubes (+2) and weapons lie there
+        self.npc_far = float(up.get("npc_range", 250))
         rp = load_params().get("roof") or {}
         self.roof_start = float(rp.get("start_s", 100))
         self.rp, self.roof, self.roof_key, self.climb_until, self.roof_app = None, None, None, -1.0, None
@@ -326,6 +329,10 @@ class Bot:
                         self.hurt_bearing = e["bearing"]
                     if e.get("by") is not None:
                         self.attackers[e["by"]] = (t, e.get("bearing"))
+            elif k == "kill":
+                kp = self.known.get(e.get("target"))
+                if kp is not None:
+                    self.body = (kp[1], kp[2], t)
             elif k == "hit":
                 self.last_dealt_t = t
             elif k == "effect" and e.get("effect") == "short":
@@ -403,8 +410,9 @@ class Bot:
             for n in npcs:
                 hit = self.attackers.get(n["id"])
                 attacking = hit and now - hit[0] < 4
-                hp_ok = self.me["hp"] > 0.5 * self.me["max_hp"]
-                if attacking or (hp_ok and self.t < 240 and n["_d"] < 150):   # 350 HP, 2 cubes each: farm them
+                hp_ok = self.me["hp"] > (0.4 if self.ultra else 0.5) * self.me["max_hp"]
+                far = self.npc_far if self.ultra else 150
+                if attacking or (hp_ok and self.t < (300 if self.ultra else 240) and n["_d"] < far):   # 2 cubes each
                     if best is None or n["_d"] < best["_d"]:
                         best = n
         self.target_id = best["id"] if best else None
@@ -431,6 +439,13 @@ class Bot:
                 if target["_d"] > hi:
                     return self._go_point(target["pos"][0], target["pos"][1], hi * 0.8), fast, f"#{target['id']} close"
             return move, False, f"#{target['id']}"
+        if self.body is not None and self.t - self.body[2] < 25:
+            bx, by, _ = self.body
+            d = math.hypot(bx - x, by - y)
+            if d > 3.0 and d < 200:
+                self.mode = "body"           # its cubes (all + 2) and weapons: the snowball
+                return self._go_point(bx, by, 1.5), fast and d > 25, f"loot body {d:.0f} m"
+            self.body = None
         if dd.goal is not None:
             self.mode = "drop"
             gx, gy = dd.goal[0], dd.goal[1]
@@ -654,7 +669,10 @@ class Bot:
         return best
 
     def _gun_swap(self, kind):
-        """True if a pickup of this kind should replace the gun in slot 0 (we already hold another special)."""
+        """True if a pickup of this kind should replace the gun in slot 0. Off: real matches show the top bots keep
+        the autocannon and pair it with one special (almost every kill is the gun)."""
+        if not self.drop_gun:
+            return False
         slots = self.me["weapons"]
         g, s1 = slots[0], slots[1] if len(slots) > 1 else None
         return (kind in SPECIAL and g is not None and g["kind"] == "gun" and s1 is not None
