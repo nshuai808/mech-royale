@@ -1963,10 +1963,7 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.LaserHold = 1.0   // umich-ibe: practice only, hold a laser charge through a <= 1 s loss of the target
-	p.AllFoes = true    // umich-ibe: engage every visible foe within MaxTarget (alone: 5.67)
-	p.EngageDist = 90   // umich-ibe: engage within 90 m (alone: 5.67; mostly covered by AllFoes)
-	p.CrowdHide = false // umich-ibe: no long 'swamped' retreats (alone: 5.73, inert in practice)
+	p.LaserHold = 1.0 // umich-ibe: practice only, hold a laser charge through a <= 1 s loss of the target
 	return p
 }
 
