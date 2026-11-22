@@ -1971,13 +1971,13 @@ func squadParams(p Params) Params {
 	p.MaxTarget = 240
 	p.LoseRule = true
 	p.FightLoot = 70
-	p.FarmHP = 0.5
+	p.FarmHP = 0.35 // umich-ibe: farm NPCs/crates down to 35 % HP (was 50 %)
 
 	p.LaserSeek = 240
 	p.LaserUp = true
 	p.Lethal = true
 	p.Finish = 20
-	p.FightLoot = 90 // umich-ibe: walk to cubes within 90 m during fights (was 40)
+	p.FightLoot = 40
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
 	p.HealFrom = 150
