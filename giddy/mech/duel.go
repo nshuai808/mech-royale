@@ -79,5 +79,45 @@ func (b *Brain) duelPosition(me *Self, foe *Track) (float64, float64) {
 	if first > 0.35 && !math.IsInf(first, 1) && threat && r >= foe.Dist {
 		return r, -1
 	}
+	// road-to-six #2: also look at their side. If they would kill us before we finish them (our finish at ~70 %
+	// hit rate), break sight instead of trading; a finish under 1.2 s is always taken.
+	if b.P.DuelBoth && threat && finish > 1.2 && r >= foe.Dist && finish/0.7 > b.enemyTTK(me, foe) {
+		return r, -1
+	}
 	return r, 1
+}
+
+// enemyTTK: rough seconds for this foe to kill us, from what it carries (house-bot accuracy: gun 51 %, laser 28 %).
+func (b *Brain) enemyTTK(me *Self, foe *Track) float64 {
+	scale := 1 + b.Cfg.Cubes.DamagePerCube*float64(min(foe.Cubes, b.Cfg.Cubes.StatCap))
+	dps := 0.0
+	for _, k := range foe.Weapons {
+		w, ok := b.Cfg.Weapons[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "gun":
+			if foe.Dist < w.Range && w.Cooldown > 0 {
+				busy := w.Mag * w.Cooldown
+				dps += w.Damage / w.Cooldown * busy / (busy + w.Reload) * 0.51
+			}
+		case "laser":
+			if foe.Dist < w.Range {
+				dps += w.Damage / (w.Charge + w.Cooldown) * 0.28
+			}
+		case "lightning":
+			if foe.Dist < w.Range && w.Cooldown > 0 {
+				dps += w.Damage / w.Cooldown * 0.9
+			}
+		case "mortar":
+			if foe.Dist > 25 && foe.Dist < 225 && w.Cooldown > 0 {
+				dps += (w.Damage + w.Splash) * 0.5 / w.Cooldown * 0.3
+			}
+		}
+	}
+	if dps <= 0 {
+		return math.Inf(1)
+	}
+	return me.HP / (dps * scale * (1 - me.Stats.Armor))
 }

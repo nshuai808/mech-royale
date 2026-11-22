@@ -16,7 +16,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `mech/brain.go` `upgradeOrderLaser` | practice only: laser_damage, laser_charge before plating, armor |
 | `mech/brain.go` | `HealGate`/`HealFrom` (practice only, 0.6 from 150 s): below 60 % HP don't start a fight with a foe that isn't shooting us, isn't within 45 m, isn't below 30 % HP and isn't our current target (road-to-six #3) |
 | `mech/brain.go` `observe` | robust's FFA-detector fix: an NPC kill doesn't count as a mech kill (no practice effect) |
-| `mech/brain.go` `squadParams` | tuning: HealGate from 200 s (was 150 s) |
+| `mech/duel.go`, `mech/brain.go` | `DuelBoth` (practice only, duel phase): estimate the foe's time to kill us from its weapons and cubes (house-bot accuracy); break sight when it beats our finish at 70 % hits, unless our finish is under 1.2 s (road-to-six #2) |
 
 Everything else is unchanged. Any later change goes in this table.
 

@@ -151,6 +151,7 @@ type Params struct {
 	Pursue     float64
 	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
 	HealFrom   float64 // umich-ibe: HealGate only applies after this match time (s)
+	DuelBoth   bool    // umich-ibe: duel phase, break sight when the foe would kill us before we finish it
 }
 
 func DefaultParams() Params {
@@ -1980,7 +1981,8 @@ func squadParams(p Params) Params {
 	p.FightLoot = 40
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
-	p.HealFrom = 200
+	p.HealFrom = 150
+	p.DuelBoth = true // umich-ibe: practice only, duel phase: compare both sides' time to kill (road-to-six #2)
 	return p
 }
 
