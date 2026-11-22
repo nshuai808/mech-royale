@@ -147,3 +147,7 @@ All 27 builders-4 scores of giddy variants (each a small change of 8f7f9b8 / 768
 5.11-5.84**. That spread is what ±0.16-0.18 noise around one true level of ~5.47 looks like, so no change so far is
 distinguishable from noise, including the two "bests" (5.75 = +1.7 sd, 5.84 = +2.3 sd, both the maximum of many tries).
 6.10 would be +3.8 sd: out of reach for small tweaks of this bot. Final pick unchanged: `768b8a3` (robust FFA detector).
+
+**Sun ~10:45 AM ET:** `9fa225a` (zoro V2 + giddy practice economy and recovery, `zoro-giddy-hybrid`) scored **6.10**: about +0.6
+over every giddy variant (mean 5.47, sd 0.16), the first change of the bot itself that clearly beats the noise floor. The gain
+came from a different base bot, not from tuning giddy. Its FFA play (zoro's) is unchecked against the recorded showdowns.
