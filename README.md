@@ -143,3 +143,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun 1 AM | `d983a4c` | **5.46 (builders-4)** | Rescore on the new scorer (96 fresh random seeds, identical code keeps its first score). Was 5.75 on builders-3. ~Unchanged giddy, so **~5.46 is the new baseline**; noise now ~±0.18. |
 | Sun | `eed4dc6` | (accidental resubmit) | old v2-zone-drops Python bot; not an entry. |
 | Sun | `39847d4` | 5.30 (builders-4) | robust + laser-first upgrades + LaserHold + HealGate 0.6 from 150 s. -0.16 vs ~5.46 baseline (noise). |
+| Sun | `e48ac24` | **5.57 (builders-4)** | robust + laser-first upgrades + HealGate 0.6 from 150 s (no LaserHold). +0.11 vs ~5.46 baseline: best on builders-4 so far, inside the ±0.18 noise. |
