@@ -106,6 +106,13 @@ its history and in `docs/trials_nifty_galileo.md`).
   t12 report found 0 practice captures. Low priority unless cube income is shown to need it.
 - `e9bd9ef` (NanoUp alone on main) exists but is **superseded by your swing; we won't submit it**.
 
+Later results: `b35b174` (stack above) **5.40**; `6a7c88e` practice `NoMortar = false` **5.52** (noise, no gain, mortars stay off).
+
+**Clone arena exists** (lane 1, branch `claude/nifty-galileo-lw5l5t`, `tools/sim.py`): `--clones N --clone-cmd <binary>` makes N
+opponents real bot processes (own hello/slot, same observations and budget, coast on late answers); add `--ffa` so the rest
+fight everyone. ~6 s per match with 16 giddy processes. Calibration: giddy vs 15 giddy clones = 5.96 +- 0.97 pts over 24
+matches (identical bots should average 7.5: OK). Gun-only physics, so it ranks FFA positioning/fighting, not loadouts.
+
 ### 6.2 Ready, waiting for a slot (measurement only, never ship)
 
 | Commit | What | Tells us |

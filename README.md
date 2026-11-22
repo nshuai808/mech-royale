@@ -126,3 +126,5 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sat 10:06 PM | `b08b466` | 5.73 | `v-cubes21`: practice mode collects cubes to 21, not 10. **Identical to base**: no behavior change in any of the 48 matches, so the bot never reached 10 cubes. Cube income, not the cap, is the gap. |
 | Sat 10:09 PM | `23ad2f9` | 5.73 | `v-cubes45`: cubes to 45. Identical to base, same reason. |
 | Sat 10:22 PM | `5de6212` | 5.25 | Swing `s-all`: Econ + Explore + FightLoot 70 + NanoUp (practice mode). -0.48 vs base: the stack hurts. Leave-one-outs `s-no-econ`, `s-no-explore`, `s-no-fightloot` pending to find which. |
+| Sun | `b35b174` | 5.40 | giddy + practice UseDrops, NanoUp, Explore, CubeGoal 15 (stacked, Advit). -0.33: sim blames Explore (1.48 vs 2.31) and drops (2.02). |
+| Sun | `6a7c88e` | 5.52 | giddy + practice `NoMortar = false` (take a mortar when slot 2 is empty). -0.21, noise but no gain: mortars stay off. |
