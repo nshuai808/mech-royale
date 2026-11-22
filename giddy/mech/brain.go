@@ -447,8 +447,9 @@ var upgradeOrder = []string{
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
 
+// umich-ibe: practice (LaserUp) order puts laser damage first: giddy loses mid-game 1v1s and gets ~3 upgrades a match.
 var upgradeOrderLaser = []string{
-	"plating", "armor", "laser_damage", "laser_charge", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
+	"laser_damage", "laser_charge", "plating", "armor", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
 	"servos", "gun_mag", "gun_velocity", "gyros", "lightning_chain", "reactor", "capacitor",
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
@@ -1944,7 +1945,6 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.CrowdHide = false // umich-ibe: Practice: no long retreats when 2-3 foes are in view (LoseRule pulses stay)
 	return p
 }
 
