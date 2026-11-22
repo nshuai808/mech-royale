@@ -159,6 +159,7 @@ func DefaultParams() Params {
 		Peek: true, LaserFirst: false, CrowdHide: true, Practice: true}
 
 	p.LaserFirst = true
+	p.Opening = true // umich-ibe: giddy's opening mode: before the practice switch, seek a laser to 240 m, loot to 150 m
 
 	return p
 }
@@ -335,7 +336,7 @@ func (b *Brain) observe(o *Obs) {
 	if b.otherDead >= 5 {
 		b.notPractice = true
 	}
-	if on := b.base.Practice && !b.notPractice && now > 5; on != b.pracOn {
+	if on := b.base.Practice && !b.notPractice && now > 20; on != b.pracOn {
 		b.pracOn = on
 		b.P = b.base
 		if on {
