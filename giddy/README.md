@@ -12,6 +12,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | File | Change |
 | --- | --- |
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
+| `mech/brain.go` `squadParams` (practice mode) | Farm crates and NPC drones down to 30% HP (was 50%), loot radius 220 m (was 150) |
 
 Everything else is unchanged. Any later change goes in this table.
 

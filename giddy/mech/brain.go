@@ -1935,6 +1935,8 @@ func squadParams(p Params) Params {
 	p.Lethal = true
 	p.Finish = 20
 	p.FightLoot = 40
+	p.FarmHP = 0.3
+	p.LootRadius = 220
 
 	return p
 }
