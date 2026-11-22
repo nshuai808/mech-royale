@@ -1,4 +1,4 @@
-# Partner brief: what Nathanael's session is doing (updated Sat 2026-11-21, ~11 PM ET)
+# Partner brief: what Nathanael's session is doing (updated Sat 2026-11-21, ~11:15 PM ET)
 
 For Advit's Claude: read this before starting work, so we don't build the same thing twice. Pick something from
 "Open lanes" (section 4) or something new, and tell Nathanael which one you take.
@@ -34,15 +34,15 @@ Both identical to the base: **the bot never reaches 10 cubes in practice**. So t
 ## 3. In flight (waiting for submission slots; don't duplicate)
 
 A 4-run swing that tests 4 loot/upgrade factors at once and can still separate their effects.
-`s-all` scored **5.25** (-0.48 vs base): the stack hurts. The three leave-one-outs find which factor; they now
-include the `robust` commits (merged, no practice behavior change, so still comparable with `s-all`):
+`s-all` scored **5.25** (-0.48 vs base): the stack hurts. The leave-one-outs include the `robust` commits (merged,
+no practice behavior change, so still comparable with `s-all`):
 
 | Branch | Contains | Hash | Real |
 | --- | --- | --- | --- |
 | `s-all` | E + X + F + N | `5de62121990750a4dc73bab5c3051cd3b5cf0e92` | **5.25** |
-| `s-no-explore` | E + F + N (+ robust) | `acffb086eb89d0d41523437e7972e6cd303e933c` | next |
-| `s-no-econ` | X + F + N (+ robust) | `dc730ac1878d679f7e52a2c500b806567766c7ba` | next |
-| `s-no-fightloot` | E + X + N (+ robust) | `541a96d348cb426504dc4b028fd607629979d42f` | next |
+| `s-no-explore` | E + F + N (+ robust) | `acffb086eb89d0d41523437e7972e6cd303e933c` | **5.10** |
+| `s-no-econ` | X + F + N (+ robust) | `dc730ac1878d679f7e52a2c500b806567766c7ba` | only if N is cleared |
+| `s-no-fightloot` | E + X + N (+ robust) | `541a96d348cb426504dc4b028fd607629979d42f` | on hold (still has N) |
 
 The old hashes of the three leave-one-outs (`ed43242`, `baa73b8`, `037b6ea`) are superseded: don't submit them.
 
@@ -51,13 +51,34 @@ The old hashes of the three leave-one-outs (`ed43242`, `baa73b8`, `037b6ea`) are
 - **F** `p.FightLoot = 70`: walk to cubes within 70 m during fights (giddy: 40).
 - **N** `p.NanoUp = true`: upgrade order plating, armor, nanites, then laser.
 
-Effect of E = `s-all` - `s-no-econ` (same for X, F); N = sum of the 3 leave-one-outs - 2*`s-all` - 5.73.
+**Reading so far (Sat ~11 PM ET):** removing Explore made it no better (5.10 vs 5.25, noise), so **Explore is not the
+culprit**. The one factor in every losing run is **N (NanoUp)**:
+
+| Run | Factors | Real |
+| --- | --- | --- |
+| base `515bce5` | none | 5.73 |
+| `s-all` | E + X + F + N | 5.25 |
+| `s-no-explore` | E + F + N | 5.10 |
+| Advit `b35b174` | drops + X + N (+ cubes 15, no-op) | 5.40 |
+
+Likely why: giddy's practice upgrade order is plating, armor, **laser_damage, laser_charge**, nanites. NanoUp moves
+nanites ahead of the laser upgrades, weakening giddy's main kill weapon.
+
+**Next submission: `e9bd9ef44a386e88a9ee2ef197f7cfefd51f1d53`** (Advit's commit: base + NanoUp only; the rest of its
+diff is docs). Reading:
+- ~5.1-5.4: N is the problem. Then build E + F without N (could be a winner); drop N everywhere.
+- ~5.73 or better: N is harmless; the loss is E or F. Then submit `s-no-econ` to split them.
+
+Original plan, for reference: effect of E = `s-all` - `s-no-econ` (same for X, F).
 Single-change branches `v-econ`, `v-explore`, `v-farm`, `v-econ-explore`, `v-cubes21-loot`, `v-cubes21-nano` exist
 but are superseded by this swing: don't submit them.
 
 **Robustness (this session):** done: panics, bad answers and answer time (fuzzed, all clean), the NPC-kill bug in the FFA
-detector (fixed on `robust`). Still running: a `sim.py --ffa` look at giddy vs integ-3 for zone deaths, stuck matches and
-early deaths. Known, not changed: in a free-for-all giddy plays its aggressive practice settings from 20 s until the
+detector (fixed on `robust`). Done too: a `sim.py --ffa` look at giddy vs integ-3 for zone deaths, stuck matches and
+early deaths. **Result** (24 matches x 2 seed sets, our scripted gun-only house bots, not giddy copies):
+giddy 12.29 / 13.67 placement points vs integ-3 12.75 / 14.17 (s.e. ~0.6-1.0: a tie). giddy has fewer kills
+(1.1 / 1.9 vs 1.7 / 2.5: its FFA mode hides more), 1-2 zone deaths per 24 like integ-3, no stuck matches. No robustness
+problem found; how giddy does against giddy copies needs Advit's clone arena. Known, not changed: in a free-for-all giddy plays its aggressive practice settings from 20 s until the
 first other death it sees; `hello` has no match-type field, so deaths are the only signal.
 Please leave the E/X/F/N loot/upgrade parameters in `squadParams` alone until the swing scores are in.
 
