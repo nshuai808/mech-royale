@@ -450,8 +450,9 @@ var upgradeOrder = []string{
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
 
+// umich-ibe: practice (LaserUp) order puts laser damage first (alone: 5.75).
 var upgradeOrderLaser = []string{
-	"plating", "armor", "laser_damage", "laser_charge", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
+	"laser_damage", "laser_charge", "plating", "armor", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
 	"servos", "gun_mag", "gun_velocity", "gyros", "lightning_chain", "reactor", "capacitor",
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
@@ -1962,7 +1963,10 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.LaserHold = 1.0 // umich-ibe: practice only, hold a laser charge through a <= 1 s loss of the target
+	p.LaserHold = 1.0   // umich-ibe: practice only, hold a laser charge through a <= 1 s loss of the target
+	p.AllFoes = true    // umich-ibe: engage every visible foe within MaxTarget (alone: 5.67)
+	p.EngageDist = 90   // umich-ibe: engage within 90 m (alone: 5.67; mostly covered by AllFoes)
+	p.CrowdHide = false // umich-ibe: no long 'swamped' retreats (alone: 5.73, inert in practice)
 	return p
 }
 
