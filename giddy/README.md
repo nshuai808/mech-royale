@@ -17,6 +17,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `mech/brain.go` | `HealGate`/`HealFrom` (practice only, 0.6 from 150 s): below 60 % HP don't start a fight with a foe that isn't shooting us, isn't within 45 m, isn't below 30 % HP and isn't our current target (road-to-six #3) |
 | `mech/brain.go` `observe` | robust's FFA-detector fix: an NPC kill doesn't count as a mech kill (no practice effect) |
 | `mech/brain.go` | `Corner` (practice only, 15 s, duel phase): after a mech kill with nobody in sight, walk to a reachable spot 8-24 m away with clearly lower `Exposure` (inside the zone) and hold it (road-to-six #1) |
+| `mech/brain.go` `squadParams` | tuning: HealGate from 200 s (was 150 s) |
 
 Everything else is unchanged. Any later change goes in this table.
 

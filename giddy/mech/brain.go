@@ -2020,7 +2020,7 @@ func squadParams(p Params) Params {
 	p.FightLoot = 40
 
 	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
-	p.HealFrom = 150
+	p.HealFrom = 200
 	p.Corner = 15 // umich-ibe: practice only, hold a nearby low-exposure spot for 15 s after a kill (duel phase)
 	return p
 }
