@@ -150,6 +150,7 @@ type Params struct {
 	FinishRush bool
 	Pursue     float64
 	HealGate   float64 // umich-ibe: below this HP fraction, don't start new fights (regen between hunters); 0 = off
+	HealFrom   float64 // umich-ibe: HealGate only applies after this match time (s)
 }
 
 func DefaultParams() Params {
@@ -565,7 +566,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 		case aimed && t.Dist < 190:
 			t.Engage = true
 		}
-		if b.P.HealGate > 0 && t.Engage && hpFrac < b.P.HealGate && !late && now-t.HitMe >= 4 && t.Dist > 45 &&
+		if b.P.HealGate > 0 && now >= b.P.HealFrom && t.Engage && hpFrac < b.P.HealGate && !late && now-t.HitMe >= 4 && t.Dist > 45 &&
 			t.HP >= 0.3*t.MaxHP && !(t.ID == b.stickID && now-b.stickAt < 2) {
 			// hurt and this foe isn't on us yet: let regen (45 HP/s after 5 s out of combat) top us up before the
 			// next hunter; a foe that shoots us, comes close, is nearly dead, or is the one we are fighting stays engaged
@@ -1951,7 +1952,8 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.HealGate = 0.8 // umich-ibe: practice only, heal to 80 % before starting the next fight
+	p.HealGate = 0.6 // umich-ibe: practice only, from 150 s: below 60 % HP don't start the next fight
+	p.HealFrom = 150
 	return p
 }
 
