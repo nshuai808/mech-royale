@@ -5,6 +5,8 @@ Score = mean of `16 - place` over 48 practice matches. **Placement beats kills.*
 
 Submissions close **Sun 11:00 AM ET**. Max 6 submissions per hour per team (was 4 until Sat night).
 
+[Shared experiment plan for reaching 6+](docs/road-to-six.md)
+
 ## Layout
 
 | Path | What |
