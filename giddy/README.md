@@ -14,7 +14,7 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
 | `mech/brain.go` `observe` | `kill` events for known NPCs no longer count as mech kills (they would hide other mechs' deaths from the FFA detector) |
 | `mech/brain.go` `Act`, `cmd/bot/main.go` | With `MECH_DEBUG=1`, recovered panics are printed to stderr with a stack (local tools only; off in matches) |
-| `mech/brain.go` | new `BodyLoot` (practice only, `squadParams`): remember where each mech kill died for 30 s; when no threat, walk there (worth 2 cubes in `chooseLoot`) so its cubes come into view |
+| `mech/brain.go` | new `LaserHold` (practice only, 1 s): when the target drops out of view mid-charge, keep holding aimed at its last centre instead of releasing into the idle aim |
 
 Everything else is unchanged. Any later change goes in this table.
 

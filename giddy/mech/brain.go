@@ -98,7 +98,8 @@ type Brain struct {
 	startAlive, kills  int
 	otherDead          int
 	stickID            int
-	bodies             []known // umich-ibe BodyLoot: where our recent mech kills died (ID = victim, Seen = time)
+	lastTP             Vec3    // umich-ibe LaserHold: last aim point (centre) of a mech target
+	lastTPAt           float64 // when it was last a target
 	stickAt, loseAt    float64
 }
 
@@ -150,7 +151,7 @@ type Params struct {
 	FinishHP   float64
 	FinishRush bool
 	Pursue     float64
-	BodyLoot   bool // umich-ibe: after a mech kill, walk to where it died when clear (its cubes + 2 may be out of view)
+	LaserHold  float64 // umich-ibe: keep charging this long after the target drops out of view (s; 0 = off)
 }
 
 func DefaultParams() Params {
@@ -319,9 +320,6 @@ func (b *Brain) observe(o *Obs) {
 			// here would hide other mechs' deaths from the free-for-all detector below.
 			if _, npc := b.npcs[e.Target]; !npc {
 				b.kills++
-				if tr, ok := b.tracks[e.Target]; ok && b.P.BodyLoot {
-					b.bodies = append(b.bodies, known{ID: e.Target, Pos: tr.Pos, Seen: b.now})
-				}
 			}
 			delete(b.tracks, e.Target)
 		}
@@ -926,6 +924,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 			tp[2] = target.Pos[2] + th*0.85
 		}
 		shootable, isMech = true, true
+		b.lastTP, b.lastTPAt = tp, now
 	case farm != nil:
 		tr, th = b.Cfg.Npc.Radius, b.Cfg.Npc.Height
 		tp, tv = farm.Pos, farm.Vel
@@ -1040,6 +1039,20 @@ func (b *Brain) step(o *Obs, act *Action) {
 		for i, w := range me.Weapons {
 			if w != nil && i < 2 && w.Kind == "laser" && w.Cooldown <= 0.05 && foe.Dist < w.Stats.Range && w.Charge < w.Stats.Charge+w.Stats.HoldS-0.35 {
 				act.Fire[i] = true
+			}
+		}
+	}
+
+	if b.P.LaserHold > 0 && target == nil && now-b.lastTPAt < b.P.LaserHold && !b.retreat && !zoneShould {
+		// The target blinked out (tree, corner, vision flicker) while we charge: letting go now fires the beam
+		// along whatever the torso points at and costs a 1.65 s cooldown. Keep holding, aimed at where it was,
+		// so the shot goes off when it comes back (the release logic above runs again once it is a target).
+		for i, w := range me.Weapons {
+			if w != nil && i < 2 && w.Kind == "laser" && w.Charge > 0 && w.Charge < w.Stats.Charge+w.Stats.HoldS-0.15 {
+				act.Fire[i] = true
+				aim = [2]float64{math.Atan2(b.lastTP[1]-muzzle[1], b.lastTP[0]-muzzle[0]),
+					math.Atan2(b.lastTP[2]-muzzle[2], hyp(b.lastTP[0]-muzzle[0], b.lastTP[1]-muzzle[1]))}
+				haveAim = true
 			}
 		}
 	}
@@ -1712,22 +1725,6 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 			consider("cube", c.ID, c.Pos, cubeV)
 		}
 	}
-	if b.P.BodyLoot {
-		// a kill drops all its cubes + 2 where it died; we only know cubes we have seen, so go and look.
-		// chooseLoot only runs when not fighting; skip while anything threatens us.
-		keep := b.bodies[:0]
-		for _, bd := range b.bodies {
-			d := hyp(bd.Pos[0]-x, bd.Pos[1]-y)
-			if now-bd.Seen > 30 || d < 8 {
-				continue // expired, or close enough that its cubes are in view (picked up as cubes)
-			}
-			keep = append(keep, bd)
-			if !danger && d < b.P.LootRadius {
-				consider("body", -1000-bd.ID, bd.Pos, cubeV*2)
-			}
-		}
-		b.bodies = keep
-	}
 	farmHP := 0.7
 	if b.P.FarmHP > 0 {
 		farmHP = b.P.FarmHP
@@ -1965,7 +1962,7 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.BodyLoot = true // umich-ibe: practice only, loot the body of each kill when clear
+	p.LaserHold = 1.0 // umich-ibe: practice only, hold a laser charge through a <= 1 s loss of the target
 	return p
 }
 
