@@ -128,3 +128,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sat 10:22 PM | `5de6212` | 5.25 | Swing `s-all`: Econ + Explore + FightLoot 70 + NanoUp (practice mode). -0.48 vs base: the stack hurts. Leave-one-outs `s-no-econ`, `s-no-explore`, `s-no-fightloot` pending to find which. |
 | Sun | `b35b174` | 5.40 | giddy + practice UseDrops, NanoUp, Explore, CubeGoal 15 (stacked, Advit). -0.33: sim blames Explore (1.48 vs 2.31) and drops (2.02). |
 | Sun | `6a7c88e` | 5.52 | giddy + practice `NoMortar = false` (take a mortar when slot 2 is empty). -0.21, noise but no gain: mortars stay off. |
+| Sat 10:46 PM | `acffb08` | 5.10 | `s-no-explore`: Econ + FightLoot 70 + NanoUp (+ robust). Below s-all: Explore is not the culprit. NanoUp is in every losing run (s-all 5.25, this 5.10, Advit b35b174 5.40); next test NanoUp alone (`e9bd9ef`). |
