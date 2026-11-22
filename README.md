@@ -165,3 +165,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `11242ed` | 5.51 (builders-4) | 768b8a3 + practice `CrateUntil = 150` (stop crate shots after 150 s). -0.24 vs 768b8a3: crates stay. |
 | Sun | `d721f58` | 5.15 (builders-4) | 8621477 + practice `FightLoot = 0` (no cube walks during fights). -0.69: mid-fight cube pickup is valuable. |
 | Sun | `877119e` | 5.47 (builders-4) | 8621477 with the practice switch at 1 s (was 5 s). -0.37: 5 s stays. |
+| Sun | `2f9fdd6` | 5.45 (builders-4) | 8621477 + practice `FarmHP = 0.75` (farm only above 75 % HP). -0.39: every loot cut loses on builders-4 (FightLoot 0 -0.69, CrateUntil 150 -0.24). |
