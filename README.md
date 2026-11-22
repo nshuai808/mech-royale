@@ -160,3 +160,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `1c47fc9` | 5.69 (builders-4) | 768b8a3 + giddy's `Opening` mode (first 20 s: laser seek 240 m, loot 150 m). -0.06: neutral, closest so far. |
 | Sun | `081f0d7` | 5.33 (builders-4) | 768b8a3 + early target tracking from 60 s (Codex priority 4). -0.42: dropped. Sim said +0.23: third giddy fight change where the house-bot sim was wrong. |
 | Sun | `830814f` | 5.51 (builders-4) | 768b8a3 + regen guard (Codex priority 1: skip optional NPC/crate shots in the HealGate band). -0.24. |
+| Sun | `06383db` | 5.59 (builders-4) | 768b8a3 + practice upgrade order laser_damage, laser_charge, gun_damage, gun_rate, plating, armor. -0.16: neutral. |
