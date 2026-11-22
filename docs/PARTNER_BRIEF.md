@@ -134,6 +134,10 @@ Later results: `b35b174` (stack above) **5.40**; `6a7c88e` practice `NoMortar = 
 **Probe `5001814` (no shots after 150 s) = 4.58.** giddy's kill timeline: 4.58 by 150 s, 1.15 in 150-300 s, 0 after. The gap to the
 top is in the 150-300 s multi-hunter phase.
 
+**`c3e2d53` (robust + practice `CrowdHide = false`) = 5.73, identical**: giddy is never 'swamped' in practice. It loses mid-game
+1v1s against the stronger hunters (the squad sends weakest first). Retreat/recover thresholds are inert in practice
+(sim: identical). So the +1 is duel strength at 150-300 s: cubes/upgrades/weapon by then, or duel execution.
+
 **Clone arena exists** (lane 1, branch `claude/nifty-galileo-lw5l5t`, `tools/sim.py`): `--clones N --clone-cmd <binary>` makes N
 opponents real bot processes (own hello/slot, same observations and budget, coast on late answers); add `--ffa` so the rest
 fight everyone. ~6 s per match with 16 giddy processes. Calibration: giddy vs 15 giddy clones = 5.96 +- 0.97 pts over 24
