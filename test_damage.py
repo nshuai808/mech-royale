@@ -98,7 +98,9 @@ def test_close_two_exposed_requires_weak_target():
     assert approach(False, second=True, target_hp=60)[1]["move"] != [1, 0]
     assert approach(second=True, target_hp=699, isolate=True)[1]["move"] == [1, 0]
     assert approach(second=True, target_hp=700, isolate=True)[1]["move"] != [1, 0]
-    assert approach(second=True, third=True, target_hp=60)[0] == "evade"
+    # 3 exposed: evade, unless the finisher keeps us in to finish a target that dies within finish_s (60 HP does)
+    fin = (bot.load_params().get("finisher") or {}).get("enabled", False)
+    assert approach(second=True, third=True, target_hp=60)[0] == ("fight" if fin else "evade")
 
 
 def test_close_keeps_energy_near_lightning_range():
