@@ -450,7 +450,7 @@ var upgradeOrder = []string{
 
 // umich-ibe: practice (LaserUp) order puts laser damage first.
 var upgradeOrderLaser = []string{
-	"laser_damage", "laser_charge", "plating", "armor", "nanites", "gun_damage", "gun_rate", "lightning_efficiency", "lightning_range",
+	"laser_damage", "laser_charge", "gun_damage", "gun_rate", "plating", "armor", "nanites", "lightning_efficiency", "lightning_range",
 	"servos", "gun_mag", "gun_velocity", "gyros", "lightning_chain", "reactor", "capacitor",
 	"mortar_reload", "mortar_splash", "mortar_velocity", "sensors", "jets", "laser_pierce",
 }
@@ -607,13 +607,7 @@ func (b *Brain) step(o *Obs, act *Action) {
 	}
 	// Keep the same opponent briefly while moving behind nearby cover.
 	duelPhase := b.pracOn && now >= 150
-	// umich-ibe: from 60 s (not 150 s) keep the same hunter for 1 s through a brief loss of sight;
-	// duel positioning still starts at 150 s
-	trackPhase := b.pracOn && now >= 60
-	if trackPhase && !duelPhase && target != nil && target.Kind != "npc" {
-		b.duelID, b.duelSeen = target.ID, now
-	}
-	if trackPhase && foe == nil && b.duelSeen > 0 && now-b.duelSeen < 1 {
+	if duelPhase && foe == nil && b.duelSeen > 0 && now-b.duelSeen < 1 {
 		foe = b.tracks[b.duelID]
 	}
 	danger := false
