@@ -167,3 +167,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `877119e` | 5.47 (builders-4) | 8621477 with the practice switch at 1 s (was 5 s). -0.37: 5 s stays. |
 | Sun 8:42 AM | `2f9fdd6` | 5.45 (builders-4) | 8621477 + FarmHP 0.75. Raising the quiet-period farming threshold cost 0.39 vs the 5.84 control. |
 | Sun | `871b8e0` | 5.54 (builders-4) | 8621477 + practice `FightLoot = 60` (was 40). -0.30: 40 m stays (0 m 5.15, 60 m 5.54). |
+| Sun | `0906a90` | 5.44 (builders-4) | 8621477 + ModeDetect (deaths, 6 s credit) + ZoneLock + 60 s practice target lock. -0.40. Parts untested alone: ModeDetect alone `22b086d`. |
