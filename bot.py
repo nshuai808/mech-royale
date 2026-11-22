@@ -108,6 +108,7 @@ class Bot:
         self.zmax = 45.0 if self.ultra else 3.5    # ultra: jet up to loot on roofs
         self.hop_t, self.jet_goal_z = -9.0, 0.0
         self.drop_gun = bool(up.get("drop_gun", False))
+        self.tp_cover = bool(up.get("third_party_cover", True))
         self.body = None                 # (x, y, t) where our last kill died: its cubes (+2) and weapons lie there
         self.npc_far = float(up.get("npc_range", 250))
         rp = load_params().get("roof") or {}
@@ -426,7 +427,7 @@ class Bot:
         if target is not None:
             self.mode = "fight"
             move = self._fight_move(target)
-            if target["kind"] == "mech" and self._third_party(target, enemies, exposed):
+            if self.tp_cover and target["kind"] == "mech" and self._third_party(target, enemies, exposed):
                 # a second enemy can join before this one dies: back into cover from the others, keep shooting
                 others = [(e["pos"][0], e["pos"][1]) for e in enemies if e is not target]
                 if others:
