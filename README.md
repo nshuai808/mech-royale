@@ -96,3 +96,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sat | `8ecaa3c` | 3.35 | + rooftop camping from 100 s (roof.py). Worse than 3.56: house bots climb, or the climb fails. |
 | Sun | `da3afa0` | 3.46 | ultra: never flee, loot-first, hops/jets, bold drops. |
 | Sun | `df31a39` | 3.63 | medium: aggro + ultra farming, flee < 40% vs 2+, heal before hunting, no hops. (Teammate's best: 3.71.) |
+| Sun | `8ffc0c2` | 0.08 | EXPERIMENT pacifist (never shoots mechs, hides, farms). Proves points = our kills only; hiding never saves us. |

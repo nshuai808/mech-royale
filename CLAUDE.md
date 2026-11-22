@@ -87,6 +87,7 @@ Difference is inside the noise (s.e. ~0.18). Drop captures 12 vs 8 matches. The 
 "stuck in a pocket without jets" artifact or late-game runs that still placed better than main.
 
 ## Status / next steps
+- **Real-score facts (Sun):** pacifist 0.08 -> practice points are ONLY our kills (house bots never die otherwise, hiding never survives). Loot/farming helped (+0.5 total); aggression alone ~neutral; never-flee and roof camping hurt.
 - [x] Repo set up from the Python starter.
 - [x] Logging harness, simulator, fuzz test.
 - [x] Survival bot v2: **real practice score 2.92** (starter 1.15, leader at the time 1.75). Now on `main`.

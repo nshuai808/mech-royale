@@ -32,7 +32,7 @@ import zone
 from nav import AStar, Map
 
 TAU = 2 * math.pi
-UPGRADE_PREF = ["plating", "armor", "nanites", "laser_damage", "laser_charge", "lightning_efficiency",
+UPGRADE_PREF = ["armor", "plating", "nanites", "laser_damage", "laser_charge", "lightning_efficiency",
                 "gun_damage", "gun_rate", "servos", "sensors", "gyros", "jets", "capacitor", "reactor",
                 "gun_mag", "gun_velocity", "lightning_range", "mortar_reload", "lightning_chain",
                 "mortar_velocity", "mortar_splash", "laser_pierce"]
@@ -214,7 +214,7 @@ class Bot:
             move, why = self._evade(threats)
             boost = me["energy"] > 25
         elif self.ultra:
-            move, boost, why = self._ultra(obs, target, need_zone, hp_frac)
+            move, boost, why = self._ultra(obs, target, need_zone, hp_frac, enemies, exposed)
         elif threats and ((not self.aggro and (self._third_party(target, enemies, exposed)
                                                 or self._should_evade(close, hp_frac, recently_hurt, target)))
                           or (self.aggro and hp_frac < 0.25 and len(exposed) >= 2)):
@@ -410,7 +410,7 @@ class Bot:
         self.target_id = best["id"] if best else None
         return best
 
-    def _ultra(self, obs, target, need_zone, hp_frac):
+    def _ultra(self, obs, target, need_zone, hp_frac, enemies=(), exposed=()):
         """Ultra-aggressive: never flee. Fight > supply drop > loot (cubes, best guns, jet to roof loot) > hunt > heal
         > zone > roam. Boost-run whenever travelling with energy to spare."""
         x, y, me, dd = self.x, self.y, self.me, self.dd
@@ -418,6 +418,13 @@ class Bot:
         if target is not None:
             self.mode = "fight"
             move = self._fight_move(target)
+            if target["kind"] == "mech" and self._third_party(target, enemies, exposed):
+                # a second enemy can join before this one dies: back into cover from the others, keep shooting
+                others = [(e["pos"][0], e["pos"][1]) for e in enemies if e is not target]
+                if others:
+                    cmv, cwhy = self._evade(others)
+                    if cwhy != "away":
+                        return cmv, False, f"#{target['id']} vs {len(others) + 1} {cwhy}"
             if target["kind"] == "mech":
                 lt = any(w and w["kind"] == "lightning" for w in me["weapons"])
                 lo, hi = (15, 38) if lt else self._range_band()
