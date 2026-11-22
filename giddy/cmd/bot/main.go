@@ -12,7 +12,15 @@ import (
 // MECH_DEBUG=1 prints recovered panics to stderr (matches show no stderr; local tools only).
 var debugOn = os.Getenv("MECH_DEBUG") != ""
 
+// MECH_TRACE_FILE=prefix writes one JSON line per decision to prefix-<pid>.jsonl (local analysis only).
+var traceOut *bufio.Writer
+
 func main() {
+	if pre := os.Getenv("MECH_TRACE_FILE"); pre != "" {
+		if f, err := os.Create(fmt.Sprintf("%s-%d.jsonl", pre, os.Getpid())); err == nil {
+			traceOut = bufio.NewWriter(f)
+		}
+	}
 	lines := make(chan []byte, 256)
 	go func() {
 		r := bufio.NewReaderSize(os.Stdin, 1<<20)
@@ -102,6 +110,13 @@ func main() {
 		}
 		before := brain.Panics
 		send(brain.Act(&o))
+		if traceOut != nil {
+			if b, err := json.Marshal(brain.TraceOf(&o)); err == nil {
+				traceOut.Write(b)
+				traceOut.WriteByte('\n')
+				traceOut.Flush()
+			}
+		}
 		if debugOn && brain.Panics > before {
 			fmt.Fprintf(os.Stderr, "PANIC tick %d: %s\n", o.Tick, brain.LastPanic)
 		}
