@@ -98,6 +98,7 @@ type Brain struct {
 	startAlive, kills  int
 	otherDead          int
 	stickID            int
+	bodies             []known // umich-ibe BodyLoot: where our recent mech kills died (ID = victim, Seen = time)
 	stickAt, loseAt    float64
 }
 
@@ -149,6 +150,7 @@ type Params struct {
 	FinishHP   float64
 	FinishRush bool
 	Pursue     float64
+	BodyLoot   bool // umich-ibe: after a mech kill, walk to where it died when clear (its cubes + 2 may be out of view)
 }
 
 func DefaultParams() Params {
@@ -317,6 +319,9 @@ func (b *Brain) observe(o *Obs) {
 			// here would hide other mechs' deaths from the free-for-all detector below.
 			if _, npc := b.npcs[e.Target]; !npc {
 				b.kills++
+				if tr, ok := b.tracks[e.Target]; ok && b.P.BodyLoot {
+					b.bodies = append(b.bodies, known{ID: e.Target, Pos: tr.Pos, Seen: b.now})
+				}
 			}
 			delete(b.tracks, e.Target)
 		}
@@ -1707,6 +1712,22 @@ func (b *Brain) chooseLoot(o *Obs, hpFrac float64, danger bool) *lootChoice {
 			consider("cube", c.ID, c.Pos, cubeV)
 		}
 	}
+	if b.P.BodyLoot {
+		// a kill drops all its cubes + 2 where it died; we only know cubes we have seen, so go and look.
+		// chooseLoot only runs when not fighting; skip while anything threatens us.
+		keep := b.bodies[:0]
+		for _, bd := range b.bodies {
+			d := hyp(bd.Pos[0]-x, bd.Pos[1]-y)
+			if now-bd.Seen > 30 || d < 8 {
+				continue // expired, or close enough that its cubes are in view (picked up as cubes)
+			}
+			keep = append(keep, bd)
+			if !danger && d < b.P.LootRadius {
+				consider("body", -1000-bd.ID, bd.Pos, cubeV*2)
+			}
+		}
+		b.bodies = keep
+	}
 	farmHP := 0.7
 	if b.P.FarmHP > 0 {
 		farmHP = b.P.FarmHP
@@ -1944,7 +1965,7 @@ func squadParams(p Params) Params {
 	p.Finish = 20
 	p.FightLoot = 40
 
-	p.EngageDist = 90 // umich-ibe: practice only, engage foes within 90 m (giddy 60; sim +0.33 over 48 matches)
+	p.BodyLoot = true // umich-ibe: practice only, loot the body of each kill when clear
 	return p
 }
 
