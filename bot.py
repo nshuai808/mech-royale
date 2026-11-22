@@ -134,6 +134,9 @@ class Bot:
         self.aggro_window = float(ag.get("window_s", 20.0))
         self.aggro_hold = float(ag.get("off_hold_s", 5.0))   # hysteresis: stay off this long after switching off
         self.aggro_off_t = -99.0
+        # aggro.chase_*: don't hunt toward a last-known spot farther than chase_r from the circle centre, or after chase_until_s
+        self.chase_r = float(ag.get("chase_r", 0.0))           # 0 = no limit
+        self.chase_until = float(ag.get("chase_until_s", 0.0))  # 0 = no limit
         # docs/stuck_pocket.md: escalating unstick (climb toward the goal, slide one side, then a long jet climb)
         self.unstick_v2 = bool((load_params().get("unstick") or {}).get("v2", False))
         self.upg_ctx = bool((load_params().get("upgrade_ctx") or {}).get("enabled", False))
@@ -332,7 +335,8 @@ class Bot:
                 boost = target["_d"] > 60
         elif roof_go:
             move, why = self._roof_travel()
-        elif self.aggro and self.known and hp_frac > 0.4 and not (late_on and self.lp.p.no_hunt):
+        elif (self.aggro and self.known and hp_frac > 0.4 and not (late_on and self.lp.p.no_hunt)
+              and self._chase_ok(x, y)):
             # nobody in sight but we know where they are: go get them (the practice bots are weak)
             kid, (kt, kx, ky) = min(self.known.items(), key=lambda kv: math.hypot(kv[1][1] - x, kv[1][2] - y))
             self.mode, why = "hunt", f"#{kid}"
@@ -577,6 +581,16 @@ class Bot:
         cx, cy, r = self.circle_at(self.t + travel)
         caught = math.hypot(self.x - cx, self.y - cy) > r - 5
         return True, caught or travel > left
+
+    def _chase_ok(self, x, y):
+        """aggro.chase_*: hunting the nearest last-known enemy stays near the circle centre and ends at chase_until_s."""
+        if self.chase_until and self.t >= self.chase_until:
+            return False
+        if self.chase_r:
+            _, kx, ky = min(self.known.values(), key=lambda v: math.hypot(v[1] - x, v[2] - y))
+            if math.hypot(kx - self.gx, ky - self.gy) > self.chase_r:
+                return False
+        return True
 
     def in_safe(self, px, py, ahead=8.0):
         cx, cy, r = self.circle_at(self.t + ahead)
