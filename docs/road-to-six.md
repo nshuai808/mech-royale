@@ -81,3 +81,18 @@ HealGate from 200 s `5722027`.
 - Priority 1, regen guard: `830814f` skips optional NPC/crate shots inside the HealGate band (from 150 s, below 60 % HP). Sim: identical (gate band rarely reached).
 - Priority 4, early target tracking: `081f0d7` keeps the same hunter as the foe for 1 s after losing sight, from 60 s (duel positioning still 150 s). Sim vs `768b8a3`: +0.42 (seeds 3/9), +0.04 (seeds 4/10), pooled +0.23 over 48.
 - Also queued: `1c47fc9` giddy's `Opening` mode on; `8621477` practice switch at 5 s (do not use in the final entry: aggressive settings 5-20 s in FFA).
+
+## Advit's queue (Sun ~4:45 AM ET): loot less
+
+Every change that made giddy loot more lost 0.3-0.6 (Econ+FightLoot 5.10, Explore, drops 5.40, body loot 5.42), and every
+fight-behavior change lost too. Untested direction: giddy's own practice looting, which is already heavy (crates all match,
+cubes within 40 m mid-fight, loot within 150 m, NPC farming above 50 % HP). One change each on `768b8a3`:
+
+| Order | Commit | Change (practice `squadParams`) |
+| --- | --- | --- |
+| 1 | `4c50b36` | `FightLoot = 0`: no cube walks during fights (was 40 m) |
+| 2 | `11242ed` | `CrateUntil = 150`: stop shooting crates after 150 s (was all match) |
+| 3 | `e967e8f` | `FarmHP = 0.75`: farm NPCs/crates only above 75 % HP (was 50 %) |
+| 4 | `089ffe9` | `LootRadius = 100` (was 150) |
+| 5 | `8621477` | practice switch at 5 s (practice only; not for the final entry) |
+| later | combinations | any two that beat 5.75, plus `1c47fc9` Opening (5.69) |
