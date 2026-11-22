@@ -1955,6 +1955,7 @@ func squadParams(p Params) Params {
 	p.Lethal = true
 	p.Finish = 20
 	p.FightLoot = 40
+	p.ZoneEarly = 45
 
 	return p
 }
