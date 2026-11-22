@@ -14,6 +14,8 @@ This folder is **giddygiddyboy's Mech Royale bot** (Go, standard library only), 
 | `cmd/bot/main.go` | Bot name in `ready`: `umich-ibe` |
 | `mech/brain.go` `observe` | `kill` events for known NPCs no longer count as mech kills (they would hide other mechs' deaths from the FFA detector) |
 | `mech/brain.go` `Act`, `cmd/bot/main.go` | With `MECH_DEBUG=1`, recovered panics are printed to stderr with a stack (local tools only; off in matches) |
+| `mech/brain.go` | new `LaserHold` (practice only, 1 s): when the target drops out of view mid-charge, keep holding aimed at its last centre instead of releasing into the idle aim |
+| `mech/brain.go` `upgradeOrderLaser` | practice only: laser_damage, laser_charge before plating, armor |
 | `mech/brain.go` | new `HealGate`/`HealFrom` (practice only, 0.6 from 150 s): in the mid game, below 60 % HP don't start a fight with a foe that isn't shooting us, isn't within 45 m, isn't below 30 % HP and isn't our current target |
 
 Everything else is unchanged. Any later change goes in this table.
