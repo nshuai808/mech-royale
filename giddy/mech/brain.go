@@ -1006,6 +1006,16 @@ func (b *Brain) step(o *Obs, act *Action) {
 					break
 				}
 				full := w.Stats.Charge
+				// Bank a partial beam when a moving target is about to cross cover.
+				if b.pracOn && w.Charge >= math.Max(w.Stats.MinCharge, full*0.45) && w.Charge < full-0.051 && slew(hy, hp) {
+					horizon := math.Min(0.4, full-w.Charge)
+					next := Vec3{tp[0] + tv[0]*horizon, tp[1] + tv[1]*horizon, tp[2] + tv[2]*horizon}
+					if b.W.Clear(muzzle, tp) && !b.W.Clear(muzzle, next) {
+						aim = [2]float64{hy, hp}
+						act.Fire[i] = false
+						break
+					}
+				}
 				if b.P.Lethal && w.Charge >= w.Stats.MinCharge && w.Charge < full-0.051 {
 					dmg := w.Stats.Damage * (w.Stats.MinFrac + (1-w.Stats.MinFrac)*w.Charge/full) *
 						(1 + b.Cfg.Cubes.DamagePerCube*float64(min(me.Cubes, b.Cfg.Cubes.StatCap)))
@@ -1020,7 +1030,11 @@ func (b *Brain) step(o *Obs, act *Action) {
 				}
 				if w.Charge < full-0.051 {
 					act.Fire[i] = true
-					if w.Charge > full*0.45 {
+					laserAim := w.Charge > full*0.45
+					if b.pracOn && gunOK && gun.Ammo > 0 && gun.Reload <= 0 {
+						laserAim = reserveLaserAim(me, w, hy, hp)
+					}
+					if laserAim {
 						aim = [2]float64{hy, hp}
 					}
 				} else {
@@ -1956,6 +1970,13 @@ func (b *Brain) odds(me *Self, t *Track, now float64, opening bool) float64 {
 		}
 	}
 	return 1 / (1 + math.Exp(-z))
+}
+
+// Reserve enough torso slew time to line up the beam on release.
+func reserveLaserAim(me *Self, w *WeaponState, yaw, pitch float64) bool {
+	turn := math.Abs(angDiff(yaw, me.Aim[0])) / math.Max(0.01, me.Stats.TurnRate)
+	tilt := math.Abs(pitch-me.Aim[1]) / math.Max(0.01, me.Stats.PitchRate)
+	return w.Stats.Charge-w.Charge <= math.Max(turn, tilt)+0.15
 }
 
 func squadParams(p Params) Params {
