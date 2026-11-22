@@ -11,7 +11,7 @@ Start new branches at `768b8a3` for a one-change comparison. Add your name and b
 | Experiment | Owner | Branch or PR | Status |
 | --- | --- | --- | --- |
 | 1. Choose the next fighting position | Advit | `claude/nifty-galileo-lw5l5t` `7294ba0` (= `768b8a3` + Corner 15 s) | 5.48: worse, dropped |
-| 2. Predict both sides of a duel | Advit | `claude/nifty-galileo-lw5l5t` `c430120` (= `768b8a3` + DuelBoth) | Ready to submit |
+| 2. Predict both sides of a duel | Advit | `claude/nifty-galileo-lw5l5t` `c430120` (= `768b8a3` + DuelBoth) | 5.40: worse, dropped |
 | 3. Recover between hunters | Advit | `claude/nifty-galileo-lw5l5t` `768b8a3` | **5.75**, new best |
 
 ## 1. Choose the next fighting position

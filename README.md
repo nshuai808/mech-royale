@@ -152,3 +152,4 @@ Replayed observations don't react to the bot: they test timing, crashes and deci
 | Sun | `768b8a3` | **5.75 (builders-4)** | road-to-six #3: duel bot `8f7f9b8` + laser-first upgrades + HealGate 0.6 from 150 s + robust FFA fix. **+0.17 vs 8f7f9b8 (5.58); new best. 33rd, 0.01 off the top 32.** |
 | Sun | `7294ba0` | 5.48 (builders-4) | road-to-six #1 on 768b8a3: Corner (hold a low-exposure spot 15 s after a kill). -0.27: dropped. |
 | Sun | `5722027` | 5.51 (builders-4) | 768b8a3 with HealGate from 200 s (was 150 s). -0.24: 150 s stays. |
+| Sun | `c430120` | 5.40 (builders-4) | road-to-six #2 on 768b8a3: DuelBoth (break sight when the foe would win the trade). -0.35: dropped. All three road-to-six ideas tested; only #3 (768b8a3, 5.75) kept. |
