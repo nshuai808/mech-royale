@@ -137,6 +137,11 @@ class Bot:
         # aggro.chase_*: don't hunt toward a last-known spot farther than chase_r from the circle centre, or after chase_until_s
         self.chase_r = float(ag.get("chase_r", 0.0))           # 0 = no limit
         self.chase_until = float(ag.get("chase_until_s", 0.0))  # 0 = no limit
+        # aggro.meet_s: with nothing in sight and nobody known (< 12 s), walk toward the last enemy position seen within meet_s
+        # (where the next hunter comes from) instead of roaming / holding, while HP > meet_hp. 0 = off
+        self.meet_s = float(ag.get("meet_s", 0.0))
+        self.meet_hp = float(ag.get("meet_hp", 0.6))
+        self.last_foe = None                                     # (t, x, y) of the latest enemy sighting
         # docs/stuck_pocket.md: escalating unstick (climb toward the goal, slide one side, then a long jet climb)
         self.unstick_v2 = bool((load_params().get("unstick") or {}).get("v2", False))
         self.upg_ctx = bool((load_params().get("upgrade_ctx") or {}).get("enabled", False))
@@ -251,6 +256,8 @@ class Bot:
                 if b.get("by") not in seen_ids and b.get("path"):
                     self.known[b["by"]] = (self.t - b.get("age", 0.0), b["path"][0][0], b["path"][0][1])
         self.known = {k: v for k, v in self.known.items() if self.t - v[0] < 12}
+        if self.meet_s and self.known:
+            self.last_foe = max(self.known.values())
         hp_frac = me["hp"] / max(1.0, me["max_hp"])
         recently_hurt = self.t - self.last_hurt_t < 2.5
 
@@ -341,6 +348,12 @@ class Bot:
             kid, (kt, kx, ky) = min(self.known.items(), key=lambda kv: math.hypot(kv[1][1] - x, kv[1][2] - y))
             self.mode, why = "hunt", f"#{kid}"
             move = self._go_point(kx, ky, 20.0)
+        elif (self.meet_s and self.aggro and not self.known and self.last_foe is not None and hp_frac > self.meet_hp
+              and self.t - self.last_foe[0] < self.meet_s and not need_zone and not (late_on and self.lp.p.no_hunt)
+              and not threats and self.t - self.last_hurt_t >= 6 and self._meet_ok(x, y)):
+            # practice: the next hunter comes from where the last one was; meet it early instead of waiting
+            self.mode, why = "meet", f"{self.t - self.last_foe[0]:.0f}s ago"
+            move = self._go_point(self.last_foe[1], self.last_foe[2], 15.0)
         elif any(e["_d"] < 150 for e in exposed) or (threats and self.t - self.last_hurt_t < 6):
             self.mode = "hide"
             move, why = self._evade(threats)
@@ -591,6 +604,18 @@ class Bot:
             if math.hypot(kx - self.gx, ky - self.gy) > self.chase_r:
                 return False
         return True
+
+    def _meet_ok(self, x, y):
+        """aggro.meet_s: the meeting point is still worth walking to (not reached, inside the coming circle, chase limits)."""
+        _, fx, fy = self.last_foe
+        if math.hypot(fx - x, fy - y) < 15.0:
+            self.last_foe = None             # reached: nobody there
+            return False
+        if self.chase_until and self.t >= self.chase_until:
+            return False
+        if self.chase_r and math.hypot(fx - self.gx, fy - self.gy) > self.chase_r:
+            return False
+        return self.in_safe(fx, fy, ahead=20)
 
     def in_safe(self, px, py, ahead=8.0):
         cx, cy, r = self.circle_at(self.t + ahead)
