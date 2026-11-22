@@ -127,3 +127,16 @@ The strongest signal is the cost of removing the nearby cube option. Earlier los
 **Revised submission order.** First try `84780e6` (gun–laser timing). Of the three published candidates it most cleanly tests a combat gain while preserving resource decisions. Defer `ed07546` (sound acquisition) until the scan can be tested during otherwise idle aim; the published version can interrupt farming fire. Put `71096ec` (lightning matchup) behind a test that keeps the ordinary cube-detour decision available during the matchup. Both are still unscored in the four results above.
 
 **Revised interception experiment.** Start from `8621477`. First test pre-aiming a predicted crossing while following the baseline loot route, only when the torso would otherwise be idle. Compare damage dealt before the first incoming hit, time to the next kill, and cubes at the next contact on matched starts. Expand to rerouting only if pre-aim improves the opening exchange and the economy measurements hold up.
+
+## Advit's findings (Sun ~8:55 AM ET)
+
+**FFA cost of the 5 s switch, from 14 recorded showdowns** (`tools/feed_record.py`, top-team free-for-alls): the first mech death
+came at 8.0-23.9 s, median 12.3 s, **never before 5 s**; 11 of 14 between 5 and 20 s, 3 after 20 s. So `8621477` plays squad
+settings in a typical final opening for about 7 s (5 s to first death + 0.5 s detection), up to 15 s in 3/14 matches; the 20 s
+control plays base settings there. giddy died before 60 s in 31 % of recorded showdowns. **Final entry: `768b8a3`** (agrees
+with the Codex recommendation).
+
+**Practice results on `8621477` (5.84):** every one-change variant lost 0.3-0.7: FightLoot 0 5.15, FarmHP 0.75 5.45, switch at
+1 s 5.47, FightLoot 60 5.54. With CrateUntil 150 (5.51 on 768b8a3): every cut to giddy's own loot loses on builders-4, and so
+does widening mid-fight cubes. giddy's loot settings look locally optimal. Pending: `e68afed` FarmHP 0.35, `8e51ee0` LootRadius 200.
+Both bests (5.75, 5.84) are likely partly high draws (each was the best of ~10 runs; all neighbours land 0.25-0.4 lower).
